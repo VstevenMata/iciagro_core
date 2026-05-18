@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from gui.excel_view import ExcelView
+from gui.main_window import MainWindow
 
 
 class HeroBanner(QFrame):
@@ -225,9 +225,7 @@ class WelcomeView(QWidget):
         return None
 
     def _open_excel_view(self) -> None:
-        """Open the Excel view as a new window."""
-        welcome_window = self.window()
-        welcome_window.close()  # Close the welcome window
-        self.excel_view = ExcelView()
-        self.excel_view.show()
-        self.excel_view.showMaximized()
+        self.window().close()
+        self._main = MainWindow()
+        self._main.show()
+        self._main.showMaximized()

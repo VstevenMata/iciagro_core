@@ -1,4 +1,1 @@
-from .styles import build_stylesheet
-from .welcome_view import WelcomeView
-
-__all__ = ["WelcomeView", "build_stylesheet"]
+# GUI package — imports lazy para evitar carga anticipada
