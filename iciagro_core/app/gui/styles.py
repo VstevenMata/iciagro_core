@@ -504,4 +504,125 @@ def build_stylesheet() -> str:
         font-size: 11px;
         color: #334155;
     }
+
+    /* ── BADGES DE CLASIFICACIÓN ── */
+    QLabel#badgeExcelente {
+        background-color: #1A2D22;
+        border: 1px solid #3F6B4B;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #4F9D5C;
+    }
+
+    QLabel#badgeAceptable {
+        background-color: #1F2A0A;
+        border: 1px solid #6B8B3F;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #8BB84F;
+    }
+
+    QLabel#badgeCondicionado {
+        background-color: #2D1F0A;
+        border: 1px solid #8B6F3F;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #C4A050;
+    }
+
+    QLabel#badgePeligro {
+        background-color: #2D0A0A;
+        border: 1px solid #8B3F3F;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #C04040;
+    }
+
+    QLabel#badgeNeutral {
+        background-color: #1E293B;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+    }
+
+    /* ── TABS (Etiquetas) ── */
+    QTabWidget#etiquetasTabs::pane {
+        background-color: #0B1120;
+        border: 1px solid #1E293B;
+        border-radius: 8px;
+    }
+
+    QTabWidget#etiquetasTabs > QTabBar::tab {
+        background-color: #0F172A;
+        color: #64748B;
+        border: 1px solid #1E293B;
+        border-bottom: none;
+        border-radius: 6px 6px 0 0;
+        padding: 8px 20px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    QTabWidget#etiquetasTabs > QTabBar::tab:selected {
+        background-color: #1E293B;
+        color: #E5E7EB;
+        border-color: #3F6B4B;
+        font-weight: 600;
+    }
+
+    QTabWidget#etiquetasTabs > QTabBar::tab:hover {
+        background-color: #1E293B;
+        color: #E5E7EB;
+    }
+
+    /* ── DANGER BUTTON (Retiro) ── */
+    QPushButton#dangerButton {
+        background-color: #7F1D1D;
+        border: 1px solid #991B1B;
+        border-radius: 8px;
+        padding: 10px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #FFFFFF;
+    }
+
+    QPushButton#dangerButton:hover {
+        background-color: #991B1B;
+        border-color: #B91C1C;
+    }
+
+    QPushButton#dangerButton:pressed {
+        background-color: #6B1010;
+    }
+
+    /* ── DOUBLE SPINBOX ── */
+    QDoubleSpinBox {
+        background-color: #0F172A;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 7px 10px;
+        font-size: 13px;
+        color: #E5E7EB;
+    }
+
+    QDoubleSpinBox:focus {
+        border-color: #3F6B4B;
+    }
+
+    QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+        border: none;
+        width: 16px;
+        background-color: #1E293B;
+    }
     """

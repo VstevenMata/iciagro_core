@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from typing import Optional
 
 import pandas as pd
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDateEdit,
+    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -20,25 +19,33 @@ from PySide6.QtWidgets import (
 )
 
 from gui.components.tabla_registros import TablaRegistros
-from services.excel_service import ExcelService
-from services.pdf_service import PDFService
+from services.hongos_service import HongosService
+
+
+_MODULOS = [
+    ("Proveedores",         "proveedores"),
+    ("Evaluación Proveedores", "evaluaciones"),
+    ("Clientes",            "clientes"),
+    ("Recepción MP",        "recepciones"),
+    ("Producción Interna",  "producciones"),
+    ("Producto Terminado",  "terminados"),
+    ("Expedición y Ventas", "expediciones"),
+    ("Retiro de Producto",  "retiros"),
+]
 
 
 class ReportePage(QWidget):
-    """
-    Vista de reportes con filtros y exportación PDF/Excel.
-    """
+    """Vista de reportes con selector de módulo, búsqueda y exportación."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("pageContainer")
-        self._service: Optional[ExcelService] = None
+        self._service: Optional[HongosService] = None
         self._df_full: pd.DataFrame = pd.DataFrame()
         self._df_filtrado: pd.DataFrame = pd.DataFrame()
-        self._pdf_service = PDFService()
         self._setup_ui()
 
-    def set_service(self, service: ExcelService) -> None:
+    def set_service(self, service: HongosService) -> None:
         self._service = service
         self.cargar_registros()
 
@@ -49,24 +56,20 @@ class ReportePage(QWidget):
         layout.setContentsMargins(32, 24, 32, 24)
         layout.setSpacing(20)
 
-        # Header
         hdr = QVBoxLayout()
         title = QLabel("Reportes y Exportación")
         title.setObjectName("pageTitle")
-        subtitle = QLabel("Filtra los registros y exporta a PDF o Excel.")
+        subtitle = QLabel("Selecciona el módulo, filtra los registros y exporta a PDF o Excel.")
         subtitle.setObjectName("pageSubtitle")
         hdr.addWidget(title)
         hdr.addWidget(subtitle)
         layout.addLayout(hdr)
 
-        # Filtros
         layout.addWidget(self._build_filtros_card())
 
-        # Tabla
         self.tabla = TablaRegistros()
         layout.addWidget(self.tabla)
 
-        # Acciones de exportación
         layout.addLayout(self._build_export_actions())
 
     def _build_filtros_card(self) -> QFrame:
@@ -89,47 +92,37 @@ class ReportePage(QWidget):
         controls = QHBoxLayout()
         controls.setSpacing(12)
 
-        # Filtro fecha desde
-        controls.addWidget(self._flbl("Desde:"))
-        self.fecha_desde = QDateEdit()
-        self.fecha_desde.setDate(QDate(2020, 1, 1))
-        self.fecha_desde.setDisplayFormat("dd/MM/yyyy")
-        self.fecha_desde.setCalendarPopup(True)
-        self.fecha_desde.setMaximumWidth(130)
-        controls.addWidget(self.fecha_desde)
+        # Selector de módulo
+        lbl_mod = QLabel("Módulo:")
+        lbl_mod.setObjectName("fieldLabel")
+        controls.addWidget(lbl_mod)
+        self.combo_modulo = QComboBox()
+        for nombre, _ in _MODULOS:
+            self.combo_modulo.addItem(nombre)
+        self.combo_modulo.setMinimumWidth(200)
+        self.combo_modulo.currentIndexChanged.connect(self.cargar_registros)
+        controls.addWidget(self.combo_modulo)
 
-        controls.addWidget(self._flbl("Hasta:"))
-        self.fecha_hasta = QDateEdit()
-        self.fecha_hasta.setDate(QDate.currentDate())
-        self.fecha_hasta.setDisplayFormat("dd/MM/yyyy")
-        self.fecha_hasta.setCalendarPopup(True)
-        self.fecha_hasta.setMaximumWidth(130)
-        controls.addWidget(self.fecha_hasta)
-
-        controls.addWidget(self._flbl("Proveedor:"))
-        self.input_prov = QLineEdit()
-        self.input_prov.setPlaceholderText("Filtrar por código...")
-        self.input_prov.setMaximumWidth(160)
-        controls.addWidget(self.input_prov)
-
-        controls.addWidget(self._flbl("Solo REVISAR:"))
-        self.btn_solo_revisar = QPushButton("Mostrar todos")
-        self.btn_solo_revisar.setObjectName("secondaryButton")
-        self.btn_solo_revisar.setCheckable(True)
-        self.btn_solo_revisar.toggled.connect(self._toggle_revisar)
-        controls.addWidget(self.btn_solo_revisar)
+        # Búsqueda libre
+        lbl_bus = QLabel("Buscar:")
+        lbl_bus.setObjectName("fieldLabel")
+        controls.addWidget(lbl_bus)
+        self.input_buscar = QLineEdit()
+        self.input_buscar.setPlaceholderText("Filtrar en todos los campos...")
+        self.input_buscar.textChanged.connect(self._filtrar)
+        controls.addWidget(self.input_buscar, 1)
 
         controls.addStretch()
 
-        self.btn_filtrar = QPushButton("Aplicar filtros")
-        self.btn_filtrar.setObjectName("primaryButton")
-        self.btn_filtrar.clicked.connect(self._aplicar_filtros)
-        controls.addWidget(self.btn_filtrar)
+        btn_reload = QPushButton("Actualizar")
+        btn_reload.setObjectName("secondaryButton")
+        btn_reload.clicked.connect(self.cargar_registros)
+        controls.addWidget(btn_reload)
 
-        self.btn_limpiar = QPushButton("Limpiar")
-        self.btn_limpiar.setObjectName("secondaryButton")
-        self.btn_limpiar.clicked.connect(self._limpiar_filtros)
-        controls.addWidget(self.btn_limpiar)
+        btn_limpiar = QPushButton("Limpiar filtro")
+        btn_limpiar.setObjectName("secondaryButton")
+        btn_limpiar.clicked.connect(self._limpiar_filtros)
+        controls.addWidget(btn_limpiar)
 
         vlayout.addLayout(controls)
         return card
@@ -151,52 +144,46 @@ class ReportePage(QWidget):
 
         return layout
 
-    def _flbl(self, texto: str) -> QLabel:
-        lbl = QLabel(texto)
-        lbl.setObjectName("fieldLabel")
-        lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        return lbl
-
     # ─────────────────── LÓGICA ─────────────────────────────────
 
     def cargar_registros(self) -> None:
         if not self._service:
             return
-        self._df_full = self._service.cargar_registros()
+        idx = self.combo_modulo.currentIndex()
+        _, key = _MODULOS[idx]
+        getter = {
+            "proveedores":  self._service.get_proveedores_df,
+            "evaluaciones": self._service.get_evaluaciones_df,
+            "clientes":     self._service.get_clientes_df,
+            "recepciones":  self._service.get_recepciones_df,
+            "producciones": self._service.get_producciones_df,
+            "terminados":   self._service.get_terminados_df,
+            "expediciones": self._service.get_expediciones_df,
+            "retiros":      self._service.get_retiros_df,
+        }.get(key)
+        self._df_full = getter() if getter else pd.DataFrame()
         self._df_filtrado = self._df_full.copy()
+        self.input_buscar.clear()
         self._render_tabla(self._df_filtrado)
 
-    def _aplicar_filtros(self) -> None:
+    def _filtrar(self, texto: str) -> None:
         if self._df_full.empty:
             return
-        df = self._df_full.copy()
-
-        prov = self.input_prov.text().strip().lower()
-        if prov and df.shape[1] > 1:
-            col_prov = df.columns[1]
-            df = df[df[col_prov].astype(str).str.lower().str.contains(prov, na=False)]
-
-        solo_rev = self.btn_solo_revisar.isChecked()
-        if solo_rev and df.shape[1] > 13:
-            col_rev = df.columns[13]
-            df = df[df[col_rev].astype(str).str.strip() == "REVISAR"]
-
-        self._df_filtrado = df
+        if not texto.strip():
+            self._df_filtrado = self._df_full.copy()
+        else:
+            t = texto.lower()
+            mask = self._df_full.apply(
+                lambda row: any(t in str(v).lower() for v in row if v is not None),
+                axis=1,
+            )
+            self._df_filtrado = self._df_full[mask]
         self._render_tabla(self._df_filtrado)
 
     def _limpiar_filtros(self) -> None:
-        self.fecha_desde.setDate(QDate(2020, 1, 1))
-        self.fecha_hasta.setDate(QDate.currentDate())
-        self.input_prov.clear()
-        self.btn_solo_revisar.setChecked(False)
+        self.input_buscar.clear()
         self._df_filtrado = self._df_full.copy()
         self._render_tabla(self._df_filtrado)
-
-    def _toggle_revisar(self, checked: bool) -> None:
-        self.btn_solo_revisar.setText(
-            "Solo REVISAR activo" if checked else "Mostrar todos"
-        )
-        self._aplicar_filtros()
 
     def _render_tabla(self, df: pd.DataFrame) -> None:
         self.tabla.cargar_dataframe(df)
@@ -209,38 +196,18 @@ class ReportePage(QWidget):
         if self._df_filtrado.empty:
             QMessageBox.information(self, "Sin datos", "No hay registros para exportar.")
             return
-        if not self._service:
-            return
-
+        modulo = self.combo_modulo.currentText()
         ruta, _ = QFileDialog.getSaveFileName(
             self,
             "Guardar reporte PDF",
-            f"Reporte_Trazabilidad_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            f"Reporte_{modulo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
             "PDF (*.pdf)",
         )
         if not ruta:
             return
-
         try:
-            filtros = {}
-            if self.input_prov.text().strip():
-                filtros["Proveedor"] = self.input_prov.text().strip()
-            if self.btn_solo_revisar.isChecked():
-                filtros["Estado"] = "Solo REVISAR"
-
-            empresa = self._service.config.get("empresa", "Lácteos del Páramo")
-            prefijo = self._service.config.get("prefijo", "LDP")
-
-            self._pdf_service.generar_reporte(
-                df=self._df_filtrado,
-                ruta_destino=ruta,
-                empresa=empresa,
-                prefijo=prefijo,
-                filtros=filtros,
-            )
-            QMessageBox.information(
-                self, "PDF generado", f"Reporte guardado en:\n{ruta}"
-            )
+            self._generar_pdf(self._df_filtrado, modulo, ruta)
+            QMessageBox.information(self, "PDF generado", f"Guardado en:\n{ruta}")
         except Exception as ex:
             QMessageBox.critical(self, "Error al generar PDF", str(ex))
 
@@ -248,22 +215,86 @@ class ReportePage(QWidget):
         if self._df_filtrado.empty:
             QMessageBox.information(self, "Sin datos", "No hay registros para exportar.")
             return
-        if not self._service:
-            return
-
+        modulo = self.combo_modulo.currentText()
         ruta, _ = QFileDialog.getSaveFileName(
             self,
             "Guardar Excel",
-            f"Registros_Trazabilidad_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            f"Reporte_{modulo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
             "Excel (*.xlsx)",
         )
         if not ruta:
             return
-
         try:
-            self._service.exportar_excel(self._df_filtrado, ruta)
-            QMessageBox.information(
-                self, "Excel exportado", f"Archivo guardado en:\n{ruta}"
-            )
+            with pd.ExcelWriter(ruta, engine="openpyxl") as writer:
+                self._df_filtrado.to_excel(writer, sheet_name=modulo[:31], index=False)
+            QMessageBox.information(self, "Excel exportado", f"Guardado en:\n{ruta}")
         except Exception as ex:
             QMessageBox.critical(self, "Error al exportar Excel", str(ex))
+
+    def _generar_pdf(self, df: pd.DataFrame, modulo: str, ruta: str) -> None:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import (
+            SimpleDocTemplate, Table, TableStyle,
+            Paragraph, Spacer, HRFlowable,
+        )
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+
+        doc = SimpleDocTemplate(
+            ruta, pagesize=landscape(A4),
+            rightMargin=1.5*cm, leftMargin=1.5*cm,
+            topMargin=2*cm, bottomMargin=2*cm,
+        )
+        verde  = colors.HexColor("#3F6B4B")
+        oscuro = colors.HexColor("#1E293B")
+        claro  = colors.HexColor("#E5E7EB")
+        gris   = colors.HexColor("#94A3B8")
+
+        t_title = ParagraphStyle("tt", fontName="Helvetica-Bold", fontSize=15,
+                                 textColor=claro, alignment=TA_LEFT)
+        t_sub   = ParagraphStyle("ts", fontName="Helvetica", fontSize=9,
+                                 textColor=gris,  alignment=TA_LEFT)
+        t_foot  = ParagraphStyle("tf", fontName="Helvetica", fontSize=8,
+                                 textColor=gris,  alignment=TA_CENTER)
+
+        fecha_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+        story = [
+            Paragraph(f"REPORTE — {modulo.upper()}", t_title),
+            Paragraph(f"Hongos del Páramo  ·  Generado: {fecha_str}", t_sub),
+            HRFlowable(width="100%", thickness=1, color=verde, spaceAfter=0.3*cm),
+            Paragraph(f"Total registros: {len(df)}", t_sub),
+            Spacer(1, 0.3*cm),
+        ]
+
+        # Tabla
+        headers = [str(h) for h in df.columns]
+        page_w  = landscape(A4)[0] - 3*cm
+        col_w   = page_w / len(headers) if headers else page_w
+
+        rows = [headers]
+        for _, row in df.iterrows():
+            rows.append(["" if v is None or str(v) == "nan" else str(v) for v in row])
+
+        tbl = Table(rows, colWidths=[col_w]*len(headers), repeatRows=1)
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND",  (0,0), (-1,0),  oscuro),
+            ("TEXTCOLOR",   (0,0), (-1,0),  gris),
+            ("FONTNAME",    (0,0), (-1,0),  "Helvetica-Bold"),
+            ("FONTSIZE",    (0,0), (-1,-1), 7),
+            ("GRID",        (0,0), (-1,-1), 0.3, colors.HexColor("#334155")),
+            ("LINEBELOW",   (0,0), (-1,0),  1,   verde),
+            ("BACKGROUND",  (0,1), (-1,-1), colors.HexColor("#111827")),
+            ("TEXTCOLOR",   (0,1), (-1,-1), claro),
+            ("TOPPADDING",  (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+            ("LEFTPADDING", (0,0), (-1,-1), 5),
+            ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+        ]))
+        story.append(tbl)
+        story.append(Spacer(1, 0.4*cm))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=oscuro))
+        story.append(Paragraph("ICIAGRO CORE · Sistema de Trazabilidad Hongos del Páramo", t_foot))
+
+        doc.build(story)

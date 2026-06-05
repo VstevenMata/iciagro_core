@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, QSize, QTimer
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPen, QPixmap
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -68,20 +69,29 @@ class HeroBanner(QFrame):
         right_layout.setSpacing(6)
         right_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 
-       
+        logo_label = QLabel()
+        logo_label.setAlignment(Qt.AlignCenter)
+        logo_pixmap = QPixmap(self._resolve_logo_path())
+        if not logo_pixmap.isNull():
+            logo_label.setPixmap(
+                logo_pixmap.scaled(
+                    QSize(120, 120),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
+            )
+        right_layout.addWidget(logo_label)
+        right_layout.addSpacing(8)
+
         integrantes_title = QLabel("Integrantes")
         integrantes_title.setObjectName("sectionTitle")
         integrantes_title.setAlignment(Qt.AlignLeft)
 
-        
-    
         right_layout.addWidget(integrantes_title)
 
         for name in (
-            "- Steven Mata",
-            "- Anthony Mata",
-            "- Kimberly Mata",
-            "- Margory Quirós",
+            "- Anthony Mata Quirós",
+            "- Camila Gómez Sequeira",
         ):
             item = QLabel(name)
             item.setObjectName("listItem")
@@ -129,59 +139,35 @@ class HeroBanner(QFrame):
     def _load_pixmap(self, size: QSize) -> QPixmap:
         if self._image_path:
             source = QPixmap(self._image_path)
-
             if not source.isNull():
-                scaled = source.scaled(
+                return source.scaled(
                     size,
                     Qt.KeepAspectRatioByExpanding,
                     Qt.SmoothTransformation,
                 )
-
-                return scaled
-
-            return self._build_fallback_pixmap(size)
-
         return self._build_fallback_pixmap(size)
 
     def _build_fallback_pixmap(self, size: QSize) -> QPixmap:
         pixmap = QPixmap(size)
         pixmap.fill(Qt.transparent)
-
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing, True)
-
         rect = pixmap.rect()
-
         gradient = QLinearGradient(0, 0, size.width(), size.height())
         gradient.setColorAt(0.0, QColor("#0F172A"))
         gradient.setColorAt(0.6, QColor("#111827"))
         gradient.setColorAt(1.0, QColor("#0B1120"))
-
         painter.fillRect(rect, gradient)
-
-        pen = QPen(QColor(63, 107, 75, 90))
-        pen.setWidth(2)
-        painter.setPen(pen)
-
-        band_start = int(rect.height() * 0.2)
-
-        for index in range(6):
-            y_pos = band_start + index * 24
-            painter.drawLine(0, y_pos, rect.width(), y_pos + index * 3)
-
-        grid_pen = QPen(QColor(148, 163, 184, 35))
-        grid_pen.setWidth(1)
-        painter.setPen(grid_pen)
-
-        for x_pos in range(0, rect.width(), 60):
-            painter.drawLine(x_pos, 0, x_pos, rect.height())
-
-        for y_pos in range(0, rect.height(), 60):
-            painter.drawLine(0, y_pos, rect.width(), y_pos)
-
         painter.end()
-
         return pixmap
+
+    def _resolve_logo_path(self) -> str:
+        if getattr(sys, "frozen", False):
+            assets_dir = Path(sys._MEIPASS) / "assets"
+        else:
+            assets_dir = Path(__file__).resolve().parents[1] / "assets"
+        candidate = assets_dir / "logo_hongos.png"
+        return str(candidate) if candidate.is_file() else ""
 
     def set_action_button(self, button: QPushButton) -> None:
         self._action_layout.insertWidget(1, button, 0, Qt.AlignHCenter)
@@ -210,19 +196,13 @@ class WelcomeView(QWidget):
         root_layout.addWidget(hero)
 
     def _resolve_hero_path(self) -> Optional[str]:
-        assets_dir = Path(__file__).resolve().parents[1] / "assets"
+        if getattr(sys, "frozen", False):
+            assets_dir = Path(sys._MEIPASS) / "assets"
+        else:
+            assets_dir = Path(__file__).resolve().parents[1] / "assets"
 
-        for filename in (
-            "hero.jpg",
-            "hero.png",
-            "hero.jpeg",
-        ):
-            candidate = assets_dir / filename
-
-            if candidate.is_file():
-                return str(candidate)
-
-        return None
+        candidate = assets_dir / "logo_hongos.png"
+        return str(candidate) if candidate.is_file() else None
 
     def _open_excel_view(self) -> None:
         self.window().close()
