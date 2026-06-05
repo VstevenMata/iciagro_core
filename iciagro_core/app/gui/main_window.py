@@ -6,9 +6,12 @@ from typing import Optional
 from PySide6.QtCore import Qt, QSettings, QSize
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -264,6 +267,21 @@ class MainWindow(QMainWindow):
             lbl.setAlignment(Qt.AlignCenter)
             layout.addWidget(lbl)
 
+        layout.addSpacing(10)
+        sep6 = QFrame()
+        sep6.setFrameShape(QFrame.HLine)
+        sep6.setStyleSheet("color:#1E293B;")
+        layout.addWidget(sep6)
+        layout.addSpacing(6)
+
+        btn_borrar = QPushButton("  Cambiar archivo Excel")
+        btn_borrar.setObjectName("dangerButton")
+        btn_borrar.setCursor(Qt.PointingHandCursor)
+        btn_borrar.setFixedHeight(34)
+        btn_borrar.clicked.connect(self._solicitar_borrar_excel)
+        layout.addWidget(btn_borrar)
+        layout.addSpacing(6)
+
         return sidebar
 
     def _section_label(self, texto: str, layout: QVBoxLayout) -> None:
@@ -431,3 +449,56 @@ class MainWindow(QMainWindow):
             )
             self._service = None
             self._ir_a("carga")
+
+    # ─────────────────── BORRAR / CAMBIAR EXCEL ─────────────────────
+
+    def _solicitar_borrar_excel(self) -> None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Autenticación requerida")
+        dlg.setFixedWidth(340)
+        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(28, 24, 28, 20)
+        layout.setSpacing(14)
+
+        titulo = QLabel("Ingresa la contraseña para continuar")
+        titulo.setWordWrap(True)
+        titulo.setStyleSheet("font-size:13px;font-weight:600;color:#E2E8F0;")
+        layout.addWidget(titulo)
+
+        self._pwd_input = QLineEdit()
+        self._pwd_input.setEchoMode(QLineEdit.Password)
+        self._pwd_input.setPlaceholderText("Contraseña")
+        self._pwd_input.setFixedHeight(36)
+        layout.addWidget(self._pwd_input)
+
+        self._pwd_error = QLabel("")
+        self._pwd_error.setStyleSheet("color:#EF4444;font-size:11px;")
+        layout.addWidget(self._pwd_error)
+
+        botones = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        botones.button(QDialogButtonBox.Ok).setText("Confirmar")
+        botones.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        botones.accepted.connect(lambda: self._verificar_clave(dlg))
+        botones.rejected.connect(dlg.reject)
+        self._pwd_input.returnPressed.connect(lambda: self._verificar_clave(dlg))
+        layout.addWidget(botones)
+
+        self._pwd_dialog = dlg
+        dlg.exec()
+
+    def _verificar_clave(self, dlg: QDialog) -> None:
+        if self._pwd_input.text() == "123":
+            dlg.accept()
+            self._borrar_excel()
+        else:
+            self._pwd_error.setText("Contraseña incorrecta. Intenta de nuevo.")
+            self._pwd_input.clear()
+            self._pwd_input.setFocus()
+
+    def _borrar_excel(self) -> None:
+        self._service = None
+        self._settings.remove(self._KEY_EXCEL)
+        self.lbl_archivo.setText("Sin archivo cargado")
+        self._ir_a("carga")
