@@ -39,6 +39,14 @@ class ExpedicionPage(QWidget):
         self._recalcular_codigo()
         self.cargar()
 
+    def showEvent(self, event) -> None:
+        """Refresca lotes y clientes cada vez que el usuario navega a esta página."""
+        super().showEvent(event)
+        if self._service:
+            self._poblar_combos()
+            self._recalcular_codigo()
+            self.cargar()
+
     # ───────────────────────── UI ───────────────────────────────────
 
     def _setup_ui(self) -> None:
@@ -112,8 +120,8 @@ class ExpedicionPage(QWidget):
         grid.addWidget(self._flbl("Código expedición"), 0, 2)
         self.lbl_codigo = self._auto_lbl()
         self.lbl_codigo.setStyleSheet(
-            "background:#111827;border:1px solid #1E293B;border-radius:6px;"
-            "padding:6px 10px;font-size:14px;font-weight:700;color:#3F6B4B;"
+            "background:#061A10;border:1px solid #059669;border-radius:8px;"
+            "padding:7px 12px;font-size:14px;font-weight:800;color:#10B981;"
         )
         grid.addWidget(self.lbl_codigo, 0, 3)
 
@@ -231,14 +239,28 @@ class ExpedicionPage(QWidget):
     def _poblar_combos(self) -> None:
         if not self._service:
             return
+
+        # Clientes: mostrar "Nombre  (código)" para que el usuario sepa qué seleccionar
         self.combo_cliente.clear()
-        self.combo_cliente.addItem("")
+        self.combo_cliente.addItem("", "")
         for cod in self._service.get_codigos_cliente():
-            self.combo_cliente.addItem(cod)
+            datos = self._service.autocompletar_cliente(cod)
+            nombre = datos.get("nombre", "")
+            display = f"{nombre}  ({cod})" if nombre else cod
+            self.combo_cliente.addItem(display, cod)
+
+        # Lotes: solo lotes de Producto Terminado con Estado=Aceptado
+        lotes = self._service.get_lotes_aceptados_terminado()
         self.combo_lote.clear()
-        self.combo_lote.addItem("")
-        for lote in self._service.get_lotes_aceptados_terminado():
-            self.combo_lote.addItem(lote)
+        if lotes:
+            self.combo_lote.addItem("", "")
+            self.combo_lote.setEnabled(True)
+            for lote in lotes:
+                self.combo_lote.addItem(lote)
+        else:
+            self.combo_lote.addItem("Sin lotes aceptados disponibles")
+            self.combo_lote.setEnabled(False)
+
         self.combo_resp.clear()
         self.combo_resp.addItem("")
         for r in self._service.RESPONSABLES:
@@ -253,7 +275,8 @@ class ExpedicionPage(QWidget):
         d = date(qd.year(), qd.month(), qd.day())
         self.lbl_codigo.setText(self._service.generar_codigo_expedicion(d))
 
-    def _on_cliente_cambiado(self, codigo: str) -> None:
+    def _on_cliente_cambiado(self, _: str) -> None:
+        codigo = self.combo_cliente.currentData() or ""
         if not self._service or not codigo:
             self.lbl_tipo.setText("—")
             return
@@ -265,13 +288,15 @@ class ExpedicionPage(QWidget):
     def _guardar(self) -> None:
         if not self._service:
             return
-        cliente = self.combo_cliente.currentText().strip()
+        cliente = self.combo_cliente.currentData() or ""
         if not cliente:
             QMessageBox.warning(self, "Campo requerido", "Selecciona un cliente.")
             return
         lote = self.combo_lote.currentText().strip()
-        if not lote:
-            QMessageBox.warning(self, "Campo requerido", "Selecciona un lote vendido.")
+        if not lote or not self.combo_lote.isEnabled():
+            QMessageBox.warning(self, "Campo requerido",
+                "Selecciona un lote vendido.\n\n"
+                "Asegúrate de registrar primero un Producto Terminado con estado 'Aceptado'.")
             return
         responsable = self.combo_resp.currentText().strip()
         if not responsable:
@@ -283,7 +308,7 @@ class ExpedicionPage(QWidget):
         datos = {
             "fecha_salida":       d,
             "codigo_expedicion":  codigo,
-            "cliente":            cliente,
+            "cliente":            cliente,  # ya es el código limpio desde currentData()
             "tipo_cliente":       self.lbl_tipo.text().replace("—", ""),
             "producto":           self.combo_prod.currentData() or "",
             "lote_vendido":       lote,

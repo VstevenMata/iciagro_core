@@ -148,8 +148,8 @@ class EvaluacionPage(QWidget):
         self.lbl_total = QLabel("0")
         self.lbl_total.setObjectName("autoValue")
         self.lbl_total.setStyleSheet(
-            "background:#111827;border:1px solid #1E293B;border-radius:6px;"
-            "padding:6px 10px;font-size:18px;font-weight:700;color:#3F6B4B;"
+            "background:#061A10;border:1px solid #059669;border-radius:8px;"
+            "padding:8px 14px;font-size:22px;font-weight:800;color:#10B981;"
         )
         self.lbl_total.setAlignment(Qt.AlignCenter)
         col_total.addWidget(self.lbl_total)
@@ -190,7 +190,7 @@ class EvaluacionPage(QWidget):
         frame = QFrame()
         frame.setObjectName("card")
         frame.setStyleSheet(
-            "QFrame#card{background:#111827;border:1px solid #1E293B;border-radius:8px;}"
+            "QFrame#card{background:#0A1525;border:1px solid #1A3050;border-radius:8px;}"
         )
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(16, 12, 16, 16)
@@ -282,15 +282,15 @@ class EvaluacionPage(QWidget):
         clasif = HongosService.clasificar(total)
         self.lbl_clasif.setText(clasif)
         colores = {
-            "Excelente":      ("badgeExcelente",    "#1A2D22", "#3F6B4B"),
-            "Aceptable":      ("badgeAceptable",    "#1F2A0A", "#6B8B3F"),
-            "Condicionado":   ("badgeCondicionado", "#2D1F0A", "#8B6F3F"),
-            "No recomendado": ("badgePeligro",      "#2D0A0A", "#8B3F3F"),
+            "Excelente":      ("#052E16", "#16A34A", "#4ADE80"),
+            "Aceptable":      ("#1A2E05", "#65A30D", "#A3E635"),
+            "Condicionado":   ("#1A1100", "#D97706", "#FCD34D"),
+            "No recomendado": ("#1A0505", "#DC2626", "#F87171"),
         }
-        obj, bg, fg = colores.get(clasif, ("badgeNeutral", "#1E293B", "#94A3B8"))
+        bg, brd, fg = colores.get(clasif, ("#0A1525", "#1A3050", "#475569"))
         self.lbl_clasif.setStyleSheet(
-            f"background:{bg};border:1px solid {fg};border-radius:6px;"
-            f"padding:4px 12px;font-size:13px;font-weight:600;color:{fg};"
+            f"background:{bg};border:1px solid {brd};border-radius:7px;"
+            f"padding:5px 14px;font-size:13px;font-weight:700;color:{fg};"
         )
 
     # ─────────────────── GUARDAR ────────────────────────────────────

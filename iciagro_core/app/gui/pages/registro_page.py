@@ -231,8 +231,8 @@ class RegistroPage(QWidget):
         grid.addWidget(self._lbl("Código de trazabilidad"), 0, 0)
         self.lbl_trazabilidad = self._auto_lbl()
         self.lbl_trazabilidad.setStyleSheet(
-            "background-color: #111827; border: 1px solid #1E293B; border-radius: 6px;"
-            " padding: 6px 10px; font-size: 14px; color: #3F6B4B; font-weight: 600;"
+            "background-color: #061A10; border: 1px solid #059669; border-radius: 8px;"
+            " padding: 7px 12px; font-size: 14px; color: #10B981; font-weight: 800;"
         )
         grid.addWidget(self.lbl_trazabilidad, 0, 1)
 

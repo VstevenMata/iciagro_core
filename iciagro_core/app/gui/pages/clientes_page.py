@@ -87,65 +87,89 @@ class ClientesPage(QWidget):
         card.setObjectName("card")
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 16, 20, 20)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
 
         row_title = QHBoxLayout()
         title = QLabel("Detalle del cliente seleccionado")
         title.setObjectName("cardTitle")
-        self.lbl_sel = QLabel("Ninguno seleccionado")
-        self.lbl_sel.setObjectName("statusBadge")
+        hint = QLabel("Haz clic en una fila de la tabla para editar")
+        hint.setObjectName("pageSubtitle")
         row_title.addWidget(title)
         row_title.addStretch()
-        row_title.addWidget(self.lbl_sel)
+        row_title.addWidget(hint)
         layout.addLayout(row_title)
 
-        grid = QHBoxLayout()
-        grid.setSpacing(20)
+        # Fila de lectura: Código y Nombre
+        id_row = QHBoxLayout()
+        id_row.setSpacing(24)
 
-        # Nombre (solo lectura)
+        col_cod = QVBoxLayout()
+        col_cod.addWidget(self._flbl("Código cliente"))
+        self.lbl_sel = QLabel("—")
+        self.lbl_sel.setStyleSheet(
+            "background:#061A10;border:1px solid #059669;border-radius:7px;"
+            "padding:6px 14px;font-size:13px;font-weight:700;color:#10B981;"
+        )
+        col_cod.addWidget(self.lbl_sel)
+        id_row.addLayout(col_cod)
+
         col_nom = QVBoxLayout()
-        col_nom.addWidget(self._flbl("Nombre"))
+        col_nom.addWidget(self._flbl("Nombre cliente"))
         self.lbl_nombre = self._auto_lbl()
         col_nom.addWidget(self.lbl_nombre)
-        grid.addLayout(col_nom)
+        id_row.addLayout(col_nom, 1)
+        layout.addLayout(id_row)
+
+        # Separador
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("color:#1A3050;")
+        layout.addWidget(sep)
+
+        # Campos editables en grid 2x2
+        from PySide6.QtWidgets import QGridLayout
+        grid = QGridLayout()
+        grid.setSpacing(16)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
 
         # Tipo (selector)
         col_tipo = QVBoxLayout()
+        col_tipo.setSpacing(4)
         col_tipo.addWidget(self._flbl("Tipo de cliente"))
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("")
-        if self._service:
-            for t in HongosService.TIPOS_CLIENTE:
-                self.combo_tipo.addItem(t)
-        else:
-            for t in ["Restaurante", "Feria", "Cliente directo"]:
-                self.combo_tipo.addItem(t)
+        for t in HongosService.TIPOS_CLIENTE:
+            self.combo_tipo.addItem(t)
         col_tipo.addWidget(self.combo_tipo)
-        grid.addLayout(col_tipo)
+        grid.addLayout(col_tipo, 0, 0)
 
-        # Contacto (editable)
+        # Contacto
         col_con = QVBoxLayout()
-        col_con.addWidget(self._flbl("Contacto *editable"))
+        col_con.setSpacing(4)
+        col_con.addWidget(self._flbl("Contacto  (editable)"))
         self.input_contacto = QLineEdit()
         self.input_contacto.setPlaceholderText("Teléfono o correo...")
         col_con.addWidget(self.input_contacto)
-        grid.addLayout(col_con)
+        grid.addLayout(col_con, 0, 1)
 
-        # Punto de entrega (editable)
+        # Punto de entrega
         col_pe = QVBoxLayout()
-        col_pe.addWidget(self._flbl("Punto de entrega *editable"))
+        col_pe.setSpacing(4)
+        col_pe.addWidget(self._flbl("Punto de entrega  (editable)"))
         self.input_punto = QLineEdit()
         self.input_punto.setPlaceholderText("Lugar de entrega...")
         col_pe.addWidget(self.input_punto)
-        grid.addLayout(col_pe)
+        grid.addLayout(col_pe, 1, 0)
 
-        # Observaciones (editable)
+        # Observaciones
         col_obs = QVBoxLayout()
-        col_obs.addWidget(self._flbl("Observaciones *editable"))
+        col_obs.setSpacing(4)
+        col_obs.addWidget(self._flbl("Observaciones  (editable)"))
         self.input_obs = QLineEdit()
         self.input_obs.setPlaceholderText("Observaciones...")
         col_obs.addWidget(self.input_obs)
-        grid.addLayout(col_obs)
+        grid.addLayout(col_obs, 1, 1)
 
         layout.addLayout(grid)
 
@@ -208,20 +232,25 @@ class ClientesPage(QWidget):
         if row_idx < 0 or row_idx >= len(df):
             return
         row = df.iloc[row_idx]
-        codigo = str(row.get("Código cliente", "") or "")
+        # _val sanitiza NaN -> "" para evitar que se guarde el string "nan"
+        codigo = self._service._val(row.get("Código cliente"))
         self._cliente_sel = codigo
-        self.lbl_sel.setText(codigo)
-        self.lbl_nombre.setText(str(row.get("Nombre cliente", "") or "—"))
-        tipo = str(row.get("Tipo de cliente", "") or "")
+        self.lbl_sel.setText(codigo if codigo else "—")
+        self.lbl_nombre.setText(self._service._val(row.get("Nombre cliente")) or "—")
+        tipo = self._service._val(row.get("Tipo de cliente"))
         idx = self.combo_tipo.findText(tipo)
         self.combo_tipo.setCurrentIndex(idx if idx >= 0 else 0)
-        self.input_contacto.setText(str(row.get("Contacto", "") or ""))
-        self.input_punto.setText(str(row.get("Punto de entrega", "") or ""))
-        self.input_obs.setText(str(row.get("Observaciones", "") or ""))
-        self.btn_guardar.setEnabled(True)
+        self.input_contacto.setText(self._service._val(row.get("Contacto")))
+        self.input_punto.setText(self._service._val(row.get("Punto de entrega")))
+        self.input_obs.setText(self._service._val(row.get("Observaciones")))
+        self.btn_guardar.setEnabled(bool(codigo))
 
     def _guardar_cambios(self) -> None:
         if not self._service or not self._cliente_sel:
+            QMessageBox.warning(
+                self, "Sin selección",
+                "Selecciona un cliente de la tabla antes de guardar."
+            )
             return
         try:
             self._service.actualizar_cliente(

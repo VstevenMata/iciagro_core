@@ -39,6 +39,14 @@ class RetiroPage(QWidget):
         self._recalcular_codigo()
         self.cargar()
 
+    def showEvent(self, event) -> None:
+        """Refresca lotes cada vez que el usuario navega a esta página."""
+        super().showEvent(event)
+        if self._service:
+            self._poblar_combos()
+            self._recalcular_codigo()
+            self.cargar()
+
     # ───────────────────────── UI ───────────────────────────────────
 
     def _setup_ui(self) -> None:
@@ -235,10 +243,18 @@ class RetiroPage(QWidget):
     def _poblar_combos(self) -> None:
         if not self._service:
             return
+
+        lotes = self._service.get_lotes_disponibles_para_retiro()
         self.combo_lote.clear()
-        self.combo_lote.addItem("")
-        for lote in self._service.get_lotes_disponibles_para_retiro():
-            self.combo_lote.addItem(lote)
+        if lotes:
+            self.combo_lote.addItem("")
+            self.combo_lote.setEnabled(True)
+            for lote in lotes:
+                self.combo_lote.addItem(lote)
+        else:
+            self.combo_lote.addItem("Sin lotes disponibles para retiro")
+            self.combo_lote.setEnabled(False)
+
         self.combo_resp.clear()
         self.combo_resp.addItem("")
         for r in self._service.RESPONSABLES:
@@ -272,8 +288,10 @@ class RetiroPage(QWidget):
         if not self._service:
             return
         lote = self.combo_lote.currentText().strip()
-        if not lote:
-            QMessageBox.warning(self, "Campo requerido", "Selecciona el lote afectado.")
+        if not lote or not self.combo_lote.isEnabled():
+            QMessageBox.warning(self, "Campo requerido",
+                "Selecciona el lote afectado.\n\n"
+                "Asegúrate de registrar primero una Expedición con condición 'Aceptada'.")
             return
         origen = self.input_origen.text().strip()
         if not origen:

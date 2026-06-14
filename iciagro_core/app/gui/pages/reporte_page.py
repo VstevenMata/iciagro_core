@@ -49,6 +49,12 @@ class ReportePage(QWidget):
         self._service = service
         self.cargar_registros()
 
+    def showEvent(self, event) -> None:
+        """Refresca los datos cada vez que el usuario navega a esta página."""
+        super().showEvent(event)
+        if self._service:
+            self.cargar_registros()
+
     # ─────────────────── UI ─────────────────────────────────────
 
     def _setup_ui(self) -> None:
@@ -247,10 +253,10 @@ class ReportePage(QWidget):
             rightMargin=1.5*cm, leftMargin=1.5*cm,
             topMargin=2*cm, bottomMargin=2*cm,
         )
-        verde  = colors.HexColor("#3F6B4B")
-        oscuro = colors.HexColor("#1E293B")
-        claro  = colors.HexColor("#E5E7EB")
-        gris   = colors.HexColor("#94A3B8")
+        verde  = colors.HexColor("#10B981")
+        oscuro = colors.HexColor("#0D1B2E")
+        claro  = colors.HexColor("#E2E8F0")
+        gris   = colors.HexColor("#64748B")
 
         t_title = ParagraphStyle("tt", fontName="Helvetica-Bold", fontSize=15,
                                  textColor=claro, alignment=TA_LEFT)
@@ -273,9 +279,24 @@ class ReportePage(QWidget):
         page_w  = landscape(A4)[0] - 3*cm
         col_w   = page_w / len(headers) if headers else page_w
 
+        def _celda(v) -> str:
+            if v is None:
+                return "Casilla Vacía"
+            try:
+                if pd.isnull(v):
+                    return "Casilla Vacía"
+            except (TypeError, ValueError):
+                pass
+            if isinstance(v, pd.Timestamp):
+                if v.hour == 0 and v.minute == 0 and v.second == 0:
+                    return v.strftime("%d/%m/%Y")
+                return v.strftime("%d/%m/%Y %H:%M")
+            s = str(v).strip()
+            return "Casilla Vacía" if s.lower() in ("nan", "none", "nat", "") else s
+
         rows = [headers]
         for _, row in df.iterrows():
-            rows.append(["" if v is None or str(v) == "nan" else str(v) for v in row])
+            rows.append([_celda(v) for v in row])
 
         tbl = Table(rows, colWidths=[col_w]*len(headers), repeatRows=1)
         tbl.setStyle(TableStyle([
@@ -283,9 +304,9 @@ class ReportePage(QWidget):
             ("TEXTCOLOR",   (0,0), (-1,0),  gris),
             ("FONTNAME",    (0,0), (-1,0),  "Helvetica-Bold"),
             ("FONTSIZE",    (0,0), (-1,-1), 7),
-            ("GRID",        (0,0), (-1,-1), 0.3, colors.HexColor("#334155")),
+            ("GRID",        (0,0), (-1,-1), 0.3, colors.HexColor("#1A3050")),
             ("LINEBELOW",   (0,0), (-1,0),  1,   verde),
-            ("BACKGROUND",  (0,1), (-1,-1), colors.HexColor("#111827")),
+            ("BACKGROUND",  (0,1), (-1,-1), colors.HexColor("#080F1A")),
             ("TEXTCOLOR",   (0,1), (-1,-1), claro),
             ("TOPPADDING",  (0,0), (-1,-1), 4),
             ("BOTTOMPADDING",(0,0),(-1,-1), 4),

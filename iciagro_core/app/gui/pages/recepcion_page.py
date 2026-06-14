@@ -156,8 +156,8 @@ class RecepcionPage(QWidget):
         grid.addWidget(self._flbl("Código recepción"), 4, 0)
         self.lbl_codigo = self._auto_lbl()
         self.lbl_codigo.setStyleSheet(
-            "background:#111827;border:1px solid #1E293B;border-radius:6px;"
-            "padding:6px 10px;font-size:14px;font-weight:700;color:#3F6B4B;"
+            "background:#061A10;border:1px solid #059669;border-radius:8px;"
+            "padding:7px 12px;font-size:14px;font-weight:800;color:#10B981;"
         )
         grid.addWidget(self.lbl_codigo, 4, 1)
 

@@ -91,9 +91,13 @@ class EtiquetasPage(QWidget):
         sel_row.addWidget(btn_gen)
         layout.addLayout(sel_row)
 
-        # Vista previa
+        # Vista previa — centrada
         self.preview_prod = self._build_label_preview_prod()
-        layout.addWidget(self.preview_prod)
+        center_prod = QHBoxLayout()
+        center_prod.addStretch()
+        center_prod.addWidget(self.preview_prod)
+        center_prod.addStretch()
+        layout.addLayout(center_prod)
         layout.addStretch()
 
         return widget
@@ -121,9 +125,13 @@ class EtiquetasPage(QWidget):
         sel_row.addWidget(btn_gen)
         layout.addLayout(sel_row)
 
-        # Vista previa
+        # Vista previa — centrada
         self.preview_final = self._build_label_preview_final()
-        layout.addWidget(self.preview_final)
+        center_final = QHBoxLayout()
+        center_final.addStretch()
+        center_final.addWidget(self.preview_final)
+        center_final.addStretch()
+        layout.addLayout(center_final)
         layout.addStretch()
 
         return widget
@@ -137,7 +145,7 @@ class EtiquetasPage(QWidget):
         frame.setMaximumSize(560, 320)
         frame.setStyleSheet(
             "QFrame#labelPreview{"
-            "background:#FFFFFF;border:2px solid #3F6B4B;border-radius:12px;"
+            "background:#FFFFFF;border:2px solid #10B981;border-radius:12px;"
             "}"
         )
         layout = QVBoxLayout(frame)
@@ -147,11 +155,11 @@ class EtiquetasPage(QWidget):
         # Header de la etiqueta
         hdr = QHBoxLayout()
         empresa_lbl = QLabel("HONGOS DEL PÁRAMO")
-        empresa_lbl.setStyleSheet("font-size:15px;font-weight:700;color:#1A3A23;")
+        empresa_lbl.setStyleSheet("font-size:15px;font-weight:800;color:#064E3B;letter-spacing:0.3px;")
         self._prod_tipo = QLabel("ETIQUETA INTERNA DE CULTIVO")
         self._prod_tipo.setStyleSheet(
-            "background:#3F6B4B;color:#FFF;border-radius:4px;"
-            "padding:2px 8px;font-size:10px;font-weight:600;"
+            "background:#059669;color:#FFFFFF;border-radius:4px;"
+            "padding:2px 10px;font-size:10px;font-weight:700;letter-spacing:0.5px;"
         )
         hdr.addWidget(empresa_lbl)
         hdr.addStretch()
@@ -160,7 +168,7 @@ class EtiquetasPage(QWidget):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color:#3F6B4B;")
+        sep.setStyleSheet("color:#10B981;")
         layout.addWidget(sep)
 
         # Campos de la etiqueta
@@ -379,8 +387,7 @@ class EtiquetasPage(QWidget):
         if not lote:
             QMessageBox.warning(self, "Sin lote", "Selecciona un lote primero.")
             return
-        datos = self._service.get_etiqueta_produccion(lote)
-        if not datos:
+        if not self._service.get_etiqueta_produccion(lote):
             QMessageBox.warning(self, "Sin datos", f"No hay datos para el lote {lote}.")
             return
         ruta, _ = QFileDialog.getSaveFileName(
@@ -391,7 +398,7 @@ class EtiquetasPage(QWidget):
         if not ruta:
             return
         try:
-            self._generar_pdf_etiqueta_produccion(datos, ruta)
+            self._exportar_preview_como_pdf(self.preview_prod, ruta)
             QMessageBox.information(self, "PDF generado", f"Etiqueta guardada en:\n{ruta}")
         except Exception as ex:
             QMessageBox.critical(self, "Error al generar PDF", str(ex))
@@ -403,8 +410,7 @@ class EtiquetasPage(QWidget):
         if not lote:
             QMessageBox.warning(self, "Sin lote", "Selecciona un lote primero.")
             return
-        datos = self._service.get_etiqueta_producto_final(lote)
-        if not datos:
+        if not self._service.get_etiqueta_producto_final(lote):
             QMessageBox.warning(self, "Sin datos", f"No hay datos para el lote {lote}.")
             return
         ruta, _ = QFileDialog.getSaveFileName(
@@ -415,133 +421,58 @@ class EtiquetasPage(QWidget):
         if not ruta:
             return
         try:
-            self._generar_pdf_etiqueta_final(datos, ruta)
+            self._exportar_preview_como_pdf(self.preview_final, ruta)
             QMessageBox.information(self, "PDF generado", f"Etiqueta guardada en:\n{ruta}")
         except Exception as ex:
             QMessageBox.critical(self, "Error al generar PDF", str(ex))
 
-    # ─────────────────── PDF (reportlab) ────────────────────────────
+    # ─────────────────── PDF — captura del widget ────────────────────
 
-    def _generar_pdf_etiqueta_produccion(self, datos: dict, ruta: str) -> None:
+    def _exportar_preview_como_pdf(self, widget: QFrame, ruta: str) -> None:
+        """Captura el QFrame de preview tal como se ve y lo embebe en el PDF."""
+        import os
+        import tempfile
         from reportlab.lib.pagesizes import A6, landscape
-        from reportlab.lib import colors
         from reportlab.lib.units import cm
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
-        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+        from reportlab.platypus import SimpleDocTemplate, Image as RLImage
 
-        doc = SimpleDocTemplate(
-            ruta, pagesize=landscape(A6),
-            rightMargin=1*cm, leftMargin=1*cm,
-            topMargin=1*cm, bottomMargin=1*cm,
+        # 1. Capturar el widget como QPixmap (alta resolución x2)
+        pixmap = widget.grab()
+        pixmap = pixmap.scaled(
+            pixmap.width() * 2, pixmap.height() * 2,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
         )
-        verde = colors.HexColor("#3F6B4B")
-        oscuro = colors.HexColor("#0F172A")
-        claro  = colors.HexColor("#E5E7EB")
 
-        titulo_style = ParagraphStyle("t", fontName="Helvetica-Bold", fontSize=13,
-                                      textColor=verde, alignment=TA_LEFT)
-        sub_style    = ParagraphStyle("s", fontName="Helvetica", fontSize=8,
-                                      textColor=claro, alignment=TA_LEFT)
-        campo_style  = ParagraphStyle("c", fontName="Helvetica-Bold", fontSize=8,
-                                      textColor=colors.HexColor("#94A3B8"), alignment=TA_LEFT)
-        valor_style  = ParagraphStyle("v", fontName="Helvetica", fontSize=9,
-                                      textColor=claro, alignment=TA_LEFT)
+        # 2. Guardar en archivo temporal PNG
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp.close()
+        pixmap.save(tmp.name, "PNG")
 
-        fecha_str = formatear_fecha(datos.get("fecha_produccion")) or "—"
-        story = [
-            Paragraph("HONGOS DEL PÁRAMO", titulo_style),
-            Paragraph("ETIQUETA INTERNA DE CULTIVO", sub_style),
-            HRFlowable(width="100%", thickness=1, color=verde),
-            Spacer(1, 0.2*cm),
-        ]
+        try:
+            # 3. Calcular tamaño en el PDF manteniendo proporción
+            page_w, page_h = landscape(A6)
+            margen = 0.8 * cm
+            max_w = page_w - 2 * margen
+            max_h = page_h - 2 * margen
 
-        filas = [
-            ["Lote interno",    datos.get("lote_interno", "—"),
-             "Empresa",         datos.get("empresa", "—")],
-            ["Código producto", datos.get("codigo_producto", "—"),
-             "Responsable",     datos.get("responsable", "—")],
-            ["Fecha producción",fecha_str,
-             "Ubicación",       datos.get("ubicacion", "—")],
-            ["Día juliano",     datos.get("dia_juliano", "—"), "", ""],
-            ["Kg sustrato",     str(datos.get("kg_sustrato", "—")),
-             "Gramos micelio",  str(datos.get("g_micelio", "—"))],
-        ]
+            img_w_px = pixmap.width()
+            img_h_px = pixmap.height()
+            ratio = min(max_w / img_w_px, max_h / img_h_px)
+            draw_w = img_w_px * ratio
+            draw_h = img_h_px * ratio
 
-        t = Table(filas, colWidths=[3*cm, 4.5*cm, 3*cm, 4.5*cm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,-1), oscuro),
-            ("TEXTCOLOR", (0,0), (-1,-1), claro),
-            ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
-            ("FONTNAME", (2,0), (2,-1), "Helvetica-Bold"),
-            ("TEXTCOLOR", (0,0), (0,-1), colors.HexColor("#94A3B8")),
-            ("TEXTCOLOR", (2,0), (2,-1), colors.HexColor("#94A3B8")),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#334155")),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-            ("LEFTPADDING", (0,0), (-1,-1), 6),
-        ]))
-        story.append(t)
-        doc.build(story)
-
-    def _generar_pdf_etiqueta_final(self, datos: dict, ruta: str) -> None:
-        from reportlab.lib.pagesizes import A6, landscape
-        from reportlab.lib import colors
-        from reportlab.lib.units import cm
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
-        from reportlab.lib.enums import TA_LEFT
-
-        doc = SimpleDocTemplate(
-            ruta, pagesize=landscape(A6),
-            rightMargin=1*cm, leftMargin=1*cm,
-            topMargin=1*cm, bottomMargin=1*cm,
-        )
-        azul  = colors.HexColor("#1E3A5F")
-        oscuro= colors.HexColor("#0F172A")
-        claro = colors.HexColor("#E5E7EB")
-
-        titulo_style = ParagraphStyle("t", fontName="Helvetica-Bold", fontSize=13,
-                                      textColor=azul, alignment=TA_LEFT)
-        sub_style    = ParagraphStyle("s", fontName="Helvetica", fontSize=8,
-                                      textColor=claro, alignment=TA_LEFT)
-
-        fc = formatear_fecha(datos.get("fecha_cosecha")) or "—"
-        fe = formatear_fecha(datos.get("fecha_empaque")) or "—"
-
-        story = [
-            Paragraph("HONGOS DEL PÁRAMO", titulo_style),
-            Paragraph("ETIQUETA PRODUCTO FINAL", sub_style),
-            HRFlowable(width="100%", thickness=1, color=azul),
-            Spacer(1, 0.2*cm),
-        ]
-
-        filas = [
-            ["Producto",       datos.get("producto", "—"),
-             "Conservación",   datos.get("conservacion", "—")],
-            ["Código",         datos.get("codigo_producto", "—"),
-             "Productor",      datos.get("productor", "—")],
-            ["Lote",           datos.get("lote_interno", "—"), "", ""],
-            ["Presentación",   datos.get("presentacion", "—"), "", ""],
-            ["Fecha cosecha",  fc, "Fecha empaque", fe],
-        ]
-
-        t = Table(filas, colWidths=[3*cm, 4.5*cm, 3*cm, 4.5*cm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,-1), oscuro),
-            ("TEXTCOLOR", (0,0), (-1,-1), claro),
-            ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
-            ("FONTNAME", (2,0), (2,-1), "Helvetica-Bold"),
-            ("TEXTCOLOR", (0,0), (0,-1), colors.HexColor("#94A3B8")),
-            ("TEXTCOLOR", (2,0), (2,-1), colors.HexColor("#94A3B8")),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#334155")),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-            ("LEFTPADDING", (0,0), (-1,-1), 6),
-        ]))
-        story.append(t)
-        doc.build(story)
+            # 4. Generar PDF con la imagen centrada
+            doc = SimpleDocTemplate(
+                ruta,
+                pagesize=landscape(A6),
+                rightMargin=margen,
+                leftMargin=margen,
+                topMargin=margen,
+                bottomMargin=margen,
+            )
+            img = RLImage(tmp.name, width=draw_w, height=draw_h)
+            img.hAlign = "CENTER"
+            doc.build([img])
+        finally:
+            os.unlink(tmp.name)

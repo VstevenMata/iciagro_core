@@ -154,9 +154,9 @@ class HeroBanner(QFrame):
         painter.setRenderHint(QPainter.Antialiasing, True)
         rect = pixmap.rect()
         gradient = QLinearGradient(0, 0, size.width(), size.height())
-        gradient.setColorAt(0.0, QColor("#0F172A"))
-        gradient.setColorAt(0.6, QColor("#111827"))
-        gradient.setColorAt(1.0, QColor("#0B1120"))
+        gradient.setColorAt(0.0, QColor("#060D1A"))
+        gradient.setColorAt(0.5, QColor("#0A1628"))
+        gradient.setColorAt(1.0, QColor("#040B14"))
         painter.fillRect(rect, gradient)
         painter.end()
         return pixmap

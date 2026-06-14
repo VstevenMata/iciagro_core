@@ -22,9 +22,12 @@ class TablaRegistros(QTableWidget):
 
     fila_seleccionada = Signal(int)
 
-    COLOR_REVISAR_BG = QColor("#2D1F0A")
-    COLOR_REVISAR_TXT = QColor("#8B6F47")
-    COLOR_OK_TXT = QColor("#3F6B4B")
+    COLOR_REVISAR_BG  = QColor("#1A0F00")
+    COLOR_REVISAR_TXT = QColor("#F59E0B")
+    COLOR_OK_TXT      = QColor("#10B981")
+    COLOR_VACIO_TXT   = QColor("#1E3A5F")
+
+    TEXTO_VACIO = "Casilla Vacía"
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -66,11 +69,14 @@ class TablaRegistros(QTableWidget):
                 revision_val = str(row.iloc[col_revision] or "").strip()
 
             for col_idx, val in enumerate(row):
-                texto = "" if val is None else str(val)
+                vacio = self._es_vacio(val)
+                texto = self.TEXTO_VACIO if vacio else self._format_val(val)
                 item = QTableWidgetItem(texto)
                 item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
 
-                if revision_val == "REVISAR":
+                if vacio:
+                    item.setForeground(self.COLOR_VACIO_TXT)
+                elif revision_val == "REVISAR":
                     item.setBackground(self.COLOR_REVISAR_BG)
                     if col_idx == col_revision:
                         item.setForeground(self.COLOR_REVISAR_TXT)
@@ -81,6 +87,15 @@ class TablaRegistros(QTableWidget):
 
         self.resizeColumnsToContents()
         self.setSortingEnabled(True)
+
+    @staticmethod
+    def _format_val(val) -> str:
+        """Format value for display; Timestamps become dd/mm/yyyy [HH:MM]."""
+        if isinstance(val, pd.Timestamp):
+            if val.hour == 0 and val.minute == 0 and val.second == 0:
+                return val.strftime("%d/%m/%Y")
+            return val.strftime("%d/%m/%Y %H:%M")
+        return str(val)
 
     def cargar_lista(self, headers: list[str], filas: list[list]) -> None:
         """Carga una lista de filas directamente."""
@@ -93,6 +108,17 @@ class TablaRegistros(QTableWidget):
             return
         df = pd.DataFrame(filas, columns=headers)
         self.cargar_dataframe(df)
+
+    @staticmethod
+    def _es_vacio(val) -> bool:
+        if val is None:
+            return True
+        try:
+            if pd.isnull(val):
+                return True
+        except (TypeError, ValueError):
+            pass
+        return str(val).strip().lower() in ("nan", "none", "nat", "nat64", "")
 
     def _on_selection_changed(self) -> None:
         selected = self.selectedItems()

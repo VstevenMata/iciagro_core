@@ -319,16 +319,18 @@ class HongosService:
 
     def get_lotes_internos(self) -> list[str]:
         df = self._producciones_df
-        if df.empty or "Lote interno automático" not in df.columns:
+        col = self._find_col(df, "Lote interno automático")
+        if df.empty or not col:
             return []
-        return [str(v) for v in df["Lote interno automático"].dropna().tolist()]
+        return [str(v).strip() for v in df[col].dropna().tolist()]
 
     def get_produccion_by_lote(self, lote: str) -> Optional[dict]:
         df = self._producciones_df
-        col = "Lote interno automático"
-        if df.empty or col not in df.columns:
+        col = self._find_col(df, "Lote interno automático")
+        if df.empty or not col:
             return None
-        match = df[df[col].astype(str) == lote]
+        lote_clean = str(lote).strip()
+        match = df[df[col].astype(str).str.strip() == lote_clean]
         return match.iloc[0].to_dict() if not match.empty else None
 
     def get_nombre_producto(self, codigo: str) -> str:
@@ -344,9 +346,10 @@ class HongosService:
 
     def get_lotes_usados_terminado(self) -> list[str]:
         df = self._terminados_df
-        if df.empty or "Lote interno" not in df.columns:
+        col = self._find_col(df, "Lote interno")
+        if df.empty or not col:
             return []
-        return [str(v) for v in df["Lote interno"].dropna().tolist()]
+        return [str(v).strip() for v in df[col].dropna().tolist()]
 
     def get_lotes_disponibles_para_terminado(self) -> list[str]:
         todos  = set(self.get_lotes_internos())
@@ -377,22 +380,23 @@ class HongosService:
         df = self._terminados_df
         if df.empty:
             return []
-        col_lote   = "Lote interno"
-        col_estado = "Estado"
-        if col_lote not in df.columns or col_estado not in df.columns:
+        col_lote   = self._find_col(df, "Lote interno")
+        col_estado = self._find_col(df, "Estado")
+        if not col_lote or not col_estado:
             return []
         return [
-            str(v) for v in df.loc[
-                df[col_estado].astype(str) == "Aceptado", col_lote
+            str(v).strip() for v in df.loc[
+                df[col_estado].astype(str).str.strip() == "Aceptado", col_lote
             ].dropna().tolist()
         ]
 
     def get_terminado_by_lote(self, lote: str) -> Optional[dict]:
         df = self._terminados_df
-        col = "Lote interno"
-        if df.empty or col not in df.columns:
+        col = self._find_col(df, "Lote interno")
+        if df.empty or not col:
             return None
-        match = df[df[col].astype(str) == lote]
+        lote_clean = str(lote).strip()
+        match = df[df[col].astype(str).str.strip() == lote_clean]
         return match.iloc[0].to_dict() if not match.empty else None
 
     # ─────────────────── EXPEDICIÓN Y VENTAS ────────────────────────
@@ -434,22 +438,23 @@ class HongosService:
         df = self._expediciones_df
         if df.empty:
             return []
-        col_lote = "Lote vendido"
-        col_cond = "Condición entrega"
-        if col_lote not in df.columns or col_cond not in df.columns:
+        col_lote = self._find_col(df, "Lote vendido")
+        col_cond = self._find_col(df, "Condición entrega")
+        if not col_lote or not col_cond:
             return []
         return [
-            str(v) for v in df.loc[
-                df[col_cond].astype(str) == "Aceptado", col_lote
+            str(v).strip() for v in df.loc[
+                df[col_cond].astype(str).str.strip() == "Aceptado", col_lote
             ].dropna().tolist()
         ]
 
     def get_expedicion_by_lote(self, lote: str) -> Optional[dict]:
         df = self._expediciones_df
-        col = "Lote vendido"
-        if df.empty or col not in df.columns:
+        col = self._find_col(df, "Lote vendido")
+        if df.empty or not col:
             return None
-        match = df[df[col].astype(str) == lote]
+        lote_clean = str(lote).strip()
+        match = df[df[col].astype(str).str.strip() == lote_clean]
         return match.iloc[0].to_dict() if not match.empty else None
 
     # ─────────────────── RETIRO DE PRODUCTO ─────────────────────────
@@ -469,9 +474,10 @@ class HongosService:
 
     def get_lotes_usados_retiro(self) -> list[str]:
         df = self._retiros_df
-        if df.empty or "Lote afectado" not in df.columns:
+        col = self._find_col(df, "Lote afectado")
+        if df.empty or not col:
             return []
-        return [str(v) for v in df["Lote afectado"].dropna().tolist()]
+        return [str(v).strip() for v in df[col].dropna().tolist()]
 
     def get_lotes_disponibles_para_retiro(self) -> list[str]:
         vendidos = set(self.get_lotes_vendidos_aceptados())
@@ -537,6 +543,17 @@ class HongosService:
         }
 
     # ─────────────────────── UTILITARIOS ────────────────────────────
+
+    @staticmethod
+    def _find_col(df: "pd.DataFrame", nombre: str) -> str:
+        """Busca el nombre de columna tolerando espacios y variantes de acento."""
+        if nombre in df.columns:
+            return nombre
+        nombre_strip = nombre.strip().lower()
+        for col in df.columns:
+            if col.strip().lower() == nombre_strip:
+                return col
+        return ""
 
     def _next_empty_row(self, ws) -> int:
         for row in range(ws.max_row, self.DATA_START - 1, -1):
