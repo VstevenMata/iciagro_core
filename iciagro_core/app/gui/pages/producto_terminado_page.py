@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import date
 from typing import Optional
 
@@ -23,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui.components.tabla_registros import TablaRegistros
+from gui.event_bus import DataEventBus
 from services.hongos_service import HongosService
 from utils.date_utils import formatear_fecha
 
@@ -40,6 +40,12 @@ class ProductoTerminadoPage(QWidget):
         self._service = service
         self._poblar_lotes()
         self.cargar()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._service:
+            self._poblar_lotes()
+            self.cargar()
 
     # ───────────────────────── UI ───────────────────────────────────
 
@@ -147,10 +153,11 @@ class ProductoTerminadoPage(QWidget):
         grid.addWidget(self.fecha_empaque, 3, 3)
 
         # Fila 4: Presentación y Cantidad empacada
-        grid.addWidget(self._flbl("Presentación (G) *"), 4, 0)
+        grid.addWidget(self._flbl("Presentación (G)"), 4, 0)
         self.spin_presentacion = QSpinBox()
         self.spin_presentacion.setRange(0, 20000)
-        self.spin_presentacion.setValue(0)
+        self.spin_presentacion.setValue(250)
+        self.spin_presentacion.setEnabled(False)
         grid.addWidget(self.spin_presentacion, 4, 1)
 
         grid.addWidget(self._flbl("Cantidad Empacada (Bandejas) *"), 4, 2)
@@ -274,12 +281,7 @@ class ProductoTerminadoPage(QWidget):
         kg = prod.get("Kilogramos sustrato", "")
         gm = prod.get("gramos micelio", "")
         self.lbl_sustrato.setText(f"{kg} kg / {gm} g")
-        # Auto-fill presentación (g) from product catalogue
-        for p in self._service.PRODUCTOS:
-            if p["codigo"] == codigo:
-                match = re.search(r"\d+", p["presentacion"])
-                self.spin_presentacion.setValue(int(match.group()) if match else 0)
-                break
+        self.spin_presentacion.setValue(250)
 
     def _limpiar_auto(self) -> None:
         for lbl in (self.lbl_cod_prod, self.lbl_producto, self.lbl_fecha_prod,
@@ -324,6 +326,7 @@ class ProductoTerminadoPage(QWidget):
             )
             self.limpiar()
             self.cargar()
+            DataEventBus.instance().datos_actualizados.emit()
         except Exception as ex:
             QMessageBox.critical(self, "Error", str(ex))
 
@@ -332,7 +335,7 @@ class ProductoTerminadoPage(QWidget):
         self.combo_lote.setCurrentIndex(0)
         self.fecha_cosecha.setDate(QDate.currentDate())
         self.fecha_empaque.setDate(QDate.currentDate())
-        self.spin_presentacion.setValue(0)
+        self.spin_presentacion.setValue(250)
         self.spin_cantidad.setValue(1)
         self.spin_temp.setValue(4)
         self.combo_resp.setCurrentIndex(0)

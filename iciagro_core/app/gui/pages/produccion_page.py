@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui.components.tabla_registros import TablaRegistros
+from gui.event_bus import DataEventBus
 from services.hongos_service import HongosService
 from utils.date_utils import dia_juliano
 
@@ -40,6 +41,12 @@ class ProduccionPage(QWidget):
         self._poblar_combos()
         self._recalcular_lote()
         self.cargar()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._service:
+            self._poblar_combos()
+            self.cargar()
 
     # ───────────────────────── UI ───────────────────────────────────
 
@@ -300,6 +307,7 @@ class ProduccionPage(QWidget):
             )
             self.limpiar()
             self.cargar()
+            DataEventBus.instance().datos_actualizados.emit()
         except Exception as ex:
             QMessageBox.critical(self, "Error", str(ex))
 

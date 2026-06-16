@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui.components.tabla_registros import TablaRegistros
+from gui.event_bus import DataEventBus
 from services.hongos_service import HongosService
 
 
@@ -146,6 +147,7 @@ class ExpedicionPage(QWidget):
         grid.addWidget(self._flbl("Lote vendido *"), 2, 2)
         self.combo_lote = QComboBox()
         self.combo_lote.setPlaceholderText("Seleccionar lote Aceptado...")
+        self.combo_lote.currentTextChanged.connect(self._on_lote_cambiado)
         grid.addWidget(self.combo_lote, 2, 3)
 
         # Fila 3: Cantidad, Unidad
@@ -253,8 +255,8 @@ class ExpedicionPage(QWidget):
             display = f"{nombre}  ({cod})" if nombre else cod
             self.combo_cliente.addItem(display, cod)
 
-        # Lotes: solo lotes de Producto Terminado con Estado=Aceptado
-        lotes = self._service.get_lotes_aceptados_terminado()
+        # Lotes: Aceptados que todavía no tienen expedición registrada
+        lotes = self._service.get_lotes_disponibles_para_expedicion()
         self.combo_lote.clear()
         if lotes:
             self.combo_lote.addItem("", "")
@@ -262,7 +264,7 @@ class ExpedicionPage(QWidget):
             for lote in lotes:
                 self.combo_lote.addItem(lote)
         else:
-            self.combo_lote.addItem("Sin lotes aceptados disponibles")
+            self.combo_lote.addItem("Sin lotes disponibles")
             self.combo_lote.setEnabled(False)
 
         self.combo_resp.clear()
@@ -271,6 +273,22 @@ class ExpedicionPage(QWidget):
             self.combo_resp.addItem(r)
 
     # ─────────────────── EVENTOS ────────────────────────────────────
+
+    def _on_lote_cambiado(self, lote: str) -> None:
+        if not self._service or not lote:
+            self.spin_cantidad.setMaximum(999999)
+            return
+        terminado = self._service.get_terminado_by_lote(lote)
+        if terminado:
+            try:
+                maximo = float(terminado.get("Cantidad empacada") or 999999)
+            except (TypeError, ValueError):
+                maximo = 999999
+            self.spin_cantidad.setMaximum(maximo)
+            if self.spin_cantidad.value() > maximo:
+                self.spin_cantidad.setValue(maximo)
+        else:
+            self.spin_cantidad.setMaximum(999999)
 
     def _recalcular_codigo(self) -> None:
         if not self._service:
@@ -331,6 +349,7 @@ class ExpedicionPage(QWidget):
             )
             self.limpiar()
             self.cargar()
+            DataEventBus.instance().datos_actualizados.emit()
         except Exception as ex:
             QMessageBox.critical(self, "Error", str(ex))
 

@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui.components.tabla_registros import TablaRegistros
+from gui.event_bus import DataEventBus
 from services.hongos_service import HongosService
 
 
@@ -31,6 +32,11 @@ class ProveedoresPage(QWidget):
     def set_service(self, service: HongosService) -> None:
         self._service = service
         self.cargar()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._service:
+            self.cargar()
 
     # ───────────────────────── UI ───────────────────────────────────
 
@@ -213,5 +219,6 @@ class ProveedoresPage(QWidget):
                 self, "Guardado", f"Proveedor {self._proveedor_sel} actualizado."
             )
             self.cargar()
+            DataEventBus.instance().datos_actualizados.emit()
         except Exception as ex:
             QMessageBox.critical(self, "Error", str(ex))

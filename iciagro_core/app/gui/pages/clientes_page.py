@@ -11,9 +11,12 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
+
+from gui.event_bus import DataEventBus
 
 from gui.components.tabla_registros import TablaRegistros
 from services.hongos_service import HongosService
@@ -33,16 +36,35 @@ class ClientesPage(QWidget):
         self._service = service
         self.cargar()
 
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._service:
+            self.cargar()
+
     # ───────────────────────── UI ───────────────────────────────────
 
     def _setup_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 24, 32, 24)
-        layout.setSpacing(20)
-        layout.addLayout(self._build_header())
-        layout.addLayout(self._build_busqueda())
-        layout.addWidget(self.tabla)
-        layout.addWidget(self._build_detalle_card())
+        main = QVBoxLayout(self)
+        main.setContentsMargins(32, 24, 32, 24)
+        main.setSpacing(20)
+        main.addLayout(self._build_header())
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        inner = QWidget()
+        inner.setObjectName("pageContainer")
+        vl = QVBoxLayout(inner)
+        vl.setSpacing(16)
+        vl.setContentsMargins(0, 0, 8, 0)
+        vl.addLayout(self._build_busqueda())
+        vl.addWidget(self.tabla, 1)
+        vl.addWidget(self._build_detalle_card())
+        vl.addStretch()
+
+        scroll.setWidget(inner)
+        main.addWidget(scroll, 1)
 
     def _build_header(self) -> QVBoxLayout:
         vl = QVBoxLayout()
@@ -78,6 +100,7 @@ class ClientesPage(QWidget):
         hl.addWidget(btn_reload)
 
         self.tabla = TablaRegistros()
+        self.tabla.setMinimumHeight(200)
         self.tabla.fila_seleccionada.connect(self._on_fila_seleccionada)
 
         return hl
@@ -269,5 +292,6 @@ class ClientesPage(QWidget):
                 self, "Guardado", f"Cliente {self._cliente_sel} actualizado."
             )
             self.cargar()
+            DataEventBus.instance().datos_actualizados.emit()
         except Exception as ex:
             QMessageBox.critical(self, "Error", str(ex))

@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gui.event_bus import DataEventBus
 from gui.icons import make_icon
 from gui.components.drop_zone import DropZoneWidget
 from gui.pages.proveedores_page          import ProveedoresPage
@@ -75,6 +76,8 @@ class MainWindow(QMainWindow):
 
         self._service: Optional[HongosService] = None
         self._settings = QSettings(self._SETTINGS_ORG, self._SETTINGS_APP)
+
+        DataEventBus.instance().datos_actualizados.connect(self._refrescar_paginas)
 
         # Sidebar state
         self._sidebar_expanded: bool = True
@@ -638,6 +641,41 @@ class MainWindow(QMainWindow):
             )
             self._service = None
             self._ir_a("carga")
+
+    # ─────────────────── REFRESCO REACTIVO ──────────────────────────
+
+    def _refrescar_paginas(self) -> None:
+        """Refresca todas las páginas excepto la actualmente visible.
+        Se llama cuando cualquier página guarda datos en el Excel."""
+        if not self._service:
+            return
+        cur = self.stack.currentWidget()
+        if self.page_proveedores is not cur:
+            self.page_proveedores.cargar()
+        if self.page_evaluacion is not cur:
+            self.page_evaluacion._poblar_combos()
+            self.page_evaluacion.cargar()
+        if self.page_clientes is not cur:
+            self.page_clientes.cargar()
+        if self.page_recepcion is not cur:
+            self.page_recepcion._poblar_combos()
+            self.page_recepcion.cargar()
+        if self.page_produccion is not cur:
+            self.page_produccion._poblar_combos()
+            self.page_produccion.cargar()
+        if self.page_terminado is not cur:
+            self.page_terminado._poblar_lotes()
+            self.page_terminado.cargar()
+        if self.page_expedicion is not cur:
+            self.page_expedicion._poblar_combos()
+            self.page_expedicion.cargar()
+        if self.page_retiro is not cur:
+            self.page_retiro._poblar_combos()
+            self.page_retiro.cargar()
+        if self.page_etiquetas is not cur:
+            self.page_etiquetas._poblar_lotes()
+        if self.page_reporte is not cur:
+            self.page_reporte.cargar_registros()
 
     # ─────────────────── BORRAR / CAMBIAR EXCEL ─────────────────────
 

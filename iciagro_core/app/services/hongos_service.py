@@ -415,6 +415,19 @@ class HongosService:
         match = df[df[col].astype(str).str.strip() == lote_clean]
         return match.iloc[0].to_dict() if not match.empty else None
 
+    def get_lotes_disponibles_para_expedicion(self) -> list[str]:
+        """Lotes Aceptados de Producto Terminado que aún no tienen expedición registrada."""
+        aceptados = set(self.get_lotes_aceptados_terminado())
+        col = self._find_col(self._expediciones_df, "Lote vendido")
+        if not col or self._expediciones_df.empty:
+            return sorted(aceptados)
+        expedidos = {
+            str(v).strip()
+            for v in self._expediciones_df[col].dropna()
+            if str(v).strip()
+        }
+        return sorted(aceptados - expedidos)
+
     # ─────────────────── EXPEDICIÓN Y VENTAS ────────────────────────
 
     def get_expediciones_df(self) -> pd.DataFrame:

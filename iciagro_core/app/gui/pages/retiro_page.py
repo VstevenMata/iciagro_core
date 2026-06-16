@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui.components.tabla_registros import TablaRegistros
+from gui.event_bus import DataEventBus
 from services.hongos_service import HongosService
 
 
@@ -336,6 +337,7 @@ class RetiroPage(QWidget):
             )
             self.limpiar()
             self.cargar()
+            DataEventBus.instance().datos_actualizados.emit()
         except Exception as ex:
             QMessageBox.critical(self, "Error", str(ex))
 

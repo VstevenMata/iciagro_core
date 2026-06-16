@@ -36,6 +36,14 @@ class EtiquetasPage(QWidget):
         self._service = service
         self._poblar_lotes()
 
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._service:
+            self._poblar_lotes()
+
+    def cargar(self) -> None:
+        self._poblar_lotes()
+
     # ───────────────────────── UI ───────────────────────────────────
 
     def _setup_ui(self) -> None:
@@ -610,6 +618,9 @@ class EtiquetasPage(QWidget):
                 observaciones=observaciones,
             )
             QMessageBox.information(self, "PDF generado", f"Etiqueta guardada en:\n{ruta}")
+            idx = self.combo_recepcion.findText(codigo)
+            if idx >= 0:
+                self.combo_recepcion.removeItem(idx)
         except Exception as ex:
             QMessageBox.critical(self, "Error al generar PDF", str(ex))
 
@@ -647,6 +658,9 @@ class EtiquetasPage(QWidget):
         try:
             self._generar_pdf_etiqueta(ruta, "ETIQUETA INTERNA DE CULTIVO", "#059669", campos_izq, campos_der)
             QMessageBox.information(self, "PDF generado", f"Etiqueta guardada en:\n{ruta}")
+            idx = self.combo_lote_prod.findText(lote)
+            if idx >= 0:
+                self.combo_lote_prod.removeItem(idx)
         except Exception as ex:
             QMessageBox.critical(self, "Error al generar PDF", str(ex))
 
@@ -685,6 +699,9 @@ class EtiquetasPage(QWidget):
         try:
             self._generar_pdf_etiqueta(ruta, "ETIQUETA PRODUCTO FINAL", "#1E3A5F", campos_izq, campos_der)
             QMessageBox.information(self, "PDF generado", f"Etiqueta guardada en:\n{ruta}")
+            idx = self.combo_lote_final.findText(lote)
+            if idx >= 0:
+                self.combo_lote_final.removeItem(idx)
         except Exception as ex:
             QMessageBox.critical(self, "Error al generar PDF", str(ex))
 
@@ -717,7 +734,7 @@ class EtiquetasPage(QWidget):
             TableStyle,
         )
 
-        page_w, page_h = landscape(A6)
+        page_w, _ = landscape(A6)
         margen = 5 * mm
         ancho_total = page_w - 2 * margen
 
