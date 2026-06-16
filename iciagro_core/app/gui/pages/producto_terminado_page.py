@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Optional
 
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -145,12 +147,13 @@ class ProductoTerminadoPage(QWidget):
         grid.addWidget(self.fecha_empaque, 3, 3)
 
         # Fila 4: Presentación y Cantidad empacada
-        grid.addWidget(self._flbl("Presentación *"), 4, 0)
-        self.input_presentacion = QLineEdit()
-        self.input_presentacion.setPlaceholderText("250 g, 500 g...")
-        grid.addWidget(self.input_presentacion, 4, 1)
+        grid.addWidget(self._flbl("Presentación (G) *"), 4, 0)
+        self.spin_presentacion = QSpinBox()
+        self.spin_presentacion.setRange(0, 20000)
+        self.spin_presentacion.setValue(0)
+        grid.addWidget(self.spin_presentacion, 4, 1)
 
-        grid.addWidget(self._flbl("Cantidad empacada *"), 4, 2)
+        grid.addWidget(self._flbl("Cantidad Empacada (Bandejas) *"), 4, 2)
         self.spin_cantidad = QDoubleSpinBox()
         self.spin_cantidad.setRange(0, 999999)
         self.spin_cantidad.setDecimals(2)
@@ -158,9 +161,9 @@ class ProductoTerminadoPage(QWidget):
         grid.addWidget(self.spin_cantidad, 4, 3)
 
         # Fila 5: Unidad y Temperatura
-        grid.addWidget(self._flbl("Unidad *"), 5, 0)
-        self.input_unidad = QLineEdit()
-        self.input_unidad.setPlaceholderText("bandejas, unidades...")
+        grid.addWidget(self._flbl("Unidad"), 5, 0)
+        self.input_unidad = QLineEdit("Bandejas")
+        self.input_unidad.setEnabled(False)
         grid.addWidget(self.input_unidad, 5, 1)
 
         grid.addWidget(self._flbl("Temperatura refrigeración (°C)"), 5, 2)
@@ -271,10 +274,11 @@ class ProductoTerminadoPage(QWidget):
         kg = prod.get("Kilogramos sustrato", "")
         gm = prod.get("gramos micelio", "")
         self.lbl_sustrato.setText(f"{kg} kg / {gm} g")
-        # Auto-fill presentación from product catalogue
+        # Auto-fill presentación (g) from product catalogue
         for p in self._service.PRODUCTOS:
             if p["codigo"] == codigo:
-                self.input_presentacion.setText(p["presentacion"])
+                match = re.search(r"\d+", p["presentacion"])
+                self.spin_presentacion.setValue(int(match.group()) if match else 0)
                 break
 
     def _limpiar_auto(self) -> None:
@@ -304,7 +308,7 @@ class ProductoTerminadoPage(QWidget):
             "lote_interno":      lote,
             "codigo_producto":   codigo,
             "producto":          self.lbl_producto.text().replace("—", ""),
-            "presentacion":      self.input_presentacion.text().strip(),
+            "presentacion":      self.spin_presentacion.value(),
             "cantidad_empacada": self.spin_cantidad.value(),
             "unidad":            self.input_unidad.text().strip(),
             "responsable":       responsable,
@@ -328,9 +332,8 @@ class ProductoTerminadoPage(QWidget):
         self.combo_lote.setCurrentIndex(0)
         self.fecha_cosecha.setDate(QDate.currentDate())
         self.fecha_empaque.setDate(QDate.currentDate())
-        self.input_presentacion.clear()
+        self.spin_presentacion.setValue(0)
         self.spin_cantidad.setValue(1)
-        self.input_unidad.clear()
         self.spin_temp.setValue(4)
         self.combo_resp.setCurrentIndex(0)
         self.combo_estado.setCurrentIndex(0)

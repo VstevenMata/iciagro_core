@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -166,10 +167,11 @@ class ProduccionPage(QWidget):
         grid.addWidget(self.spin_tiempo_past, 4, 3)
 
         # Fila 5: Tiempo secado y Responsable
-        grid.addWidget(self._flbl("Tiempo de secado"), 5, 0)
-        self.input_secado = QLineEdit()
-        self.input_secado.setPlaceholderText("Ej: 90 días...")
-        grid.addWidget(self.input_secado, 5, 1)
+        grid.addWidget(self._flbl("Tiempo de secado (Días)"), 5, 0)
+        self.spin_secado = QSpinBox()
+        self.spin_secado.setRange(0, 120)
+        self.spin_secado.setValue(0)
+        grid.addWidget(self.spin_secado, 5, 1)
 
         grid.addWidget(self._flbl("Responsable *"), 5, 2)
         self.combo_resp = QComboBox()
@@ -288,7 +290,7 @@ class ProduccionPage(QWidget):
             "responsable":         responsable,
             "temp_pasteurizacion": self.spin_temp.value(),
             "tiempo_pasteurizacion": int(self.spin_tiempo_past.value()),
-            "tiempo_secado":       self.input_secado.text().strip(),
+            "tiempo_secado":       self.spin_secado.value(),
             "observaciones":       self.input_obs.text().strip(),
         }
         try:
@@ -308,7 +310,7 @@ class ProduccionPage(QWidget):
         self.spin_micelio.setValue(0)
         self.spin_temp.setValue(85)
         self.spin_tiempo_past.setValue(60)
-        self.input_secado.clear()
+        self.spin_secado.setValue(0)
         self.combo_resp.setCurrentIndex(0)
         self.input_obs.clear()
         self._recalcular_lote()

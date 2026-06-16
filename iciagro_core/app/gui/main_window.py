@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
@@ -64,11 +65,13 @@ class MainWindow(QMainWindow):
     _KEY_EXCEL        = "ultima_ruta_excel"
     _SIDEBAR_EXPANDED = 220
     _SIDEBAR_COLLAPSED = 54
+    _BREAKPOINT_MD = 1100   # debajo de esto: ocultar créditos de la universidad
+    _BREAKPOINT_SM = 850    # debajo de esto: ocultar nombre del archivo cargado
 
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("ICIAGRO CORE — Sistema de Trazabilidad Hongos del Páramo")
-        self.setMinimumSize(1280, 780)
+        self.setMinimumSize(1000, 600)
 
         self._service: Optional[HongosService] = None
         self._settings = QSettings(self._SETTINGS_ORG, self._SETTINGS_APP)
@@ -148,6 +151,14 @@ class MainWindow(QMainWindow):
         root.addWidget(body_widget, 1)
         root.addWidget(self._build_footer())
 
+    def resizeEvent(self, event) -> None:
+        """Oculta elementos secundarios del header en pantallas angostas."""
+        super().resizeEvent(event)
+        width = event.size().width()
+        self._header_sep.setVisible(width >= self._BREAKPOINT_MD)
+        self._lbl_uni.setVisible(width >= self._BREAKPOINT_MD)
+        self.lbl_archivo.setVisible(width >= self._BREAKPOINT_SM)
+
     # ─────────────────── HEADER ─────────────────────────────────────
 
     def _build_header(self) -> QWidget:
@@ -179,14 +190,14 @@ class MainWindow(QMainWindow):
         self.lbl_archivo.setObjectName("headerSubtitle")
         layout.addWidget(self.lbl_archivo)
 
-        sep = QFrame()
-        sep.setFrameShape(QFrame.VLine)
-        sep.setStyleSheet("color:#1A3050;")
-        layout.addWidget(sep)
+        self._header_sep = QFrame()
+        self._header_sep.setFrameShape(QFrame.VLine)
+        self._header_sep.setStyleSheet("color:#1A3050;")
+        layout.addWidget(self._header_sep)
 
-        sub = QLabel("Universidad Nacional · Sede Brunca · 2026")
-        sub.setObjectName("headerSubtitle")
-        layout.addWidget(sub)
+        self._lbl_uni = QLabel("Universidad Nacional · Sede Brunca · 2026")
+        self._lbl_uni.setObjectName("headerSubtitle")
+        layout.addWidget(self._lbl_uni)
 
         return header
 
@@ -223,7 +234,7 @@ class MainWindow(QMainWindow):
         brand_layout.addWidget(self._btn_toggle)
         layout.addWidget(brand_row)
 
-        self._lbl_ver = QLabel("v2.0 · Hongos del Páramo")
+        self._lbl_ver = QLabel("Hongos del Páramo")
         self._lbl_ver.setObjectName("sidebarVersion")
         self._lbl_ver.setAlignment(Qt.AlignCenter)
         self._lbl_ver.setContentsMargins(14, 0, 14, 8)
@@ -281,28 +292,27 @@ class MainWindow(QMainWindow):
         self._add_nav(nav_layout, "reporte",   "Reportes / Exportar")
 
         nav_layout.addStretch()
-        layout.addWidget(nav, 1)
 
         # ── Integrantes ───────────────────────────────────────────────
-        layout.addWidget(self._sep())
+        nav_layout.addWidget(self._sep())
 
         self._lbl_integ = QLabel("Integrantes")
         self._lbl_integ.setObjectName("sidebarVersion")
         self._lbl_integ.setAlignment(Qt.AlignCenter)
         self._lbl_integ.setContentsMargins(0, 8, 0, 2)
         self._sidebar_extra.append(self._lbl_integ)
-        layout.addWidget(self._lbl_integ)
+        nav_layout.addWidget(self._lbl_integ)
 
         for nombre in ("Anthony Mata Quirós", "Camila Gómez Sequeira"):
             lbl = QLabel(f"· {nombre}")
             lbl.setObjectName("sidebarVersion")
             lbl.setAlignment(Qt.AlignCenter)
             self._sidebar_extra.append(lbl)
-            layout.addWidget(lbl)
+            nav_layout.addWidget(lbl)
 
-        layout.addSpacing(8)
-        layout.addWidget(self._sep())
-        layout.addSpacing(6)
+        nav_layout.addSpacing(8)
+        nav_layout.addWidget(self._sep())
+        nav_layout.addSpacing(6)
 
         # ── Danger button ─────────────────────────────────────────────
         self._btn_borrar = QPushButton(" Cambiar Excel")
@@ -317,8 +327,17 @@ class MainWindow(QMainWindow):
         bw_layout = QHBoxLayout(btn_wrapper)
         bw_layout.setContentsMargins(8, 0, 8, 8)
         bw_layout.addWidget(self._btn_borrar)
-        layout.addWidget(btn_wrapper)
+        nav_layout.addWidget(btn_wrapper)
         self._sidebar_extra.append(self._btn_borrar)
+
+        # Scroll vertical: evita que el menú se corte en pantallas de poca altura
+        nav_scroll = QScrollArea()
+        nav_scroll.setObjectName("sidebarScroll")
+        nav_scroll.setWidgetResizable(True)
+        nav_scroll.setFrameShape(QFrame.NoFrame)
+        nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        nav_scroll.setWidget(nav)
+        layout.addWidget(nav_scroll, 1)
 
         return self._sidebar_widget
 

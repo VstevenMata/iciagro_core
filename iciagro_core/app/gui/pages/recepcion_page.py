@@ -135,9 +135,12 @@ class RecepcionPage(QWidget):
         grid.addWidget(self.spin_cantidad, 2, 1)
 
         grid.addWidget(self._flbl("Unidad *"), 2, 2)
-        self.input_unidad = QLineEdit()
-        self.input_unidad.setPlaceholderText("kg, unidades, bolsas...")
-        grid.addWidget(self.input_unidad, 2, 3)
+        self.combo_unidad = QComboBox()
+        self.combo_unidad.setPlaceholderText("Seleccionar...")
+        self.combo_unidad.addItem("")
+        self.combo_unidad.addItem("KG")
+        self.combo_unidad.addItem("Unidades")
+        grid.addWidget(self.combo_unidad, 2, 3)
 
         # Fila 3: Estado y Responsable
         grid.addWidget(self._flbl("Estado *"), 3, 0)
@@ -161,9 +164,9 @@ class RecepcionPage(QWidget):
         )
         grid.addWidget(self.lbl_codigo, 4, 1)
 
-        grid.addWidget(self._flbl("Observaciones"), 4, 2)
+        grid.addWidget(self._flbl("Observaciones *"), 4, 2)
         self.input_obs = QLineEdit()
-        self.input_obs.setPlaceholderText("Observaciones opcionales...")
+        self.input_obs.setPlaceholderText("Observaciones...")
         grid.addWidget(self.input_obs, 4, 3)
 
         layout.addLayout(grid)
@@ -288,9 +291,13 @@ class RecepcionPage(QWidget):
         if not responsable:
             QMessageBox.warning(self, "Campo requerido", "Selecciona el responsable.")
             return
-        unidad = self.input_unidad.text().strip()
+        unidad = self.combo_unidad.currentText().strip()
         if not unidad:
-            QMessageBox.warning(self, "Campo requerido", "Ingresa la unidad.")
+            QMessageBox.warning(self, "Campo requerido", "Selecciona la unidad.")
+            return
+        observaciones = self.input_obs.text().strip()
+        if not observaciones:
+            QMessageBox.warning(self, "Campo requerido", "Ingresa las observaciones.")
             return
         qd = self.fecha_edit.date()
         d = date(qd.year(), qd.month(), qd.day())
@@ -304,7 +311,7 @@ class RecepcionPage(QWidget):
             "unidad":           unidad,
             "estado":           estado,
             "responsable":      responsable,
-            "observaciones":    self.input_obs.text().strip(),
+            "observaciones":    observaciones,
             "codigo_recepcion": codigo,
         }
         try:
@@ -322,7 +329,7 @@ class RecepcionPage(QWidget):
         self.combo_mp.clear()
         self.combo_mp.setEnabled(False)
         self.spin_cantidad.setValue(1)
-        self.input_unidad.clear()
+        self.combo_unidad.setCurrentIndex(0)
         self.combo_estado.setCurrentIndex(0)
         self.combo_resp.setCurrentIndex(0)
         self.input_obs.clear()

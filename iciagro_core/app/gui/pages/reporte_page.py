@@ -238,84 +238,122 @@ class ReportePage(QWidget):
             QMessageBox.critical(self, "Error al exportar Excel", str(ex))
 
     def _generar_pdf(self, df: pd.DataFrame, modulo: str, ruta: str) -> None:
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib import colors
-        from reportlab.lib.units import cm
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import (
-            SimpleDocTemplate, Table, TableStyle,
-            Paragraph, Spacer, HRFlowable,
-        )
-        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+        from xml.sax.saxutils import escape
 
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.platypus import (
+            HRFlowable,
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
+
+        verde   = colors.HexColor("#059669")
+        oscuro  = colors.HexColor("#0F172A")
+        gris    = colors.HexColor("#64748B")
+        raya    = colors.HexColor("#F1F5F9")
+        borde   = colors.HexColor("#E2E8F0")
+        blanco  = colors.white
+
+        margen_h = 1.2 * cm
         doc = SimpleDocTemplate(
             ruta, pagesize=landscape(A4),
-            rightMargin=1.5*cm, leftMargin=1.5*cm,
-            topMargin=2*cm, bottomMargin=2*cm,
+            rightMargin=margen_h, leftMargin=margen_h,
+            topMargin=1.4*cm, bottomMargin=1.4*cm,
         )
-        verde  = colors.HexColor("#10B981")
-        oscuro = colors.HexColor("#0D1B2E")
-        claro  = colors.HexColor("#E2E8F0")
-        gris   = colors.HexColor("#64748B")
 
-        t_title = ParagraphStyle("tt", fontName="Helvetica-Bold", fontSize=15,
-                                 textColor=claro, alignment=TA_LEFT)
-        t_sub   = ParagraphStyle("ts", fontName="Helvetica", fontSize=9,
-                                 textColor=gris,  alignment=TA_LEFT)
-        t_foot  = ParagraphStyle("tf", fontName="Helvetica", fontSize=8,
-                                 textColor=gris,  alignment=TA_CENTER)
+        style_title = ParagraphStyle(
+            "title", fontName="Helvetica-Bold", fontSize=16,
+            leading=20, textColor=oscuro, alignment=TA_LEFT,
+        )
+        style_sub = ParagraphStyle(
+            "sub", fontName="Helvetica", fontSize=9,
+            leading=12, textColor=gris, alignment=TA_LEFT,
+        )
+        style_foot = ParagraphStyle(
+            "foot", fontName="Helvetica", fontSize=8,
+            textColor=gris, alignment=TA_CENTER,
+        )
+
+        # Tamaño de fuente de la tabla según cantidad de columnas
+        headers = [str(h) for h in df.columns]
+        n_cols = len(headers) or 1
+        if n_cols <= 6:
+            font_size = 8
+        elif n_cols <= 10:
+            font_size = 7
+        else:
+            font_size = 6
+
+        style_head_cell = ParagraphStyle(
+            "headcell", fontName="Helvetica-Bold", fontSize=font_size,
+            textColor=blanco, leading=font_size + 2,
+        )
+        style_body_cell = ParagraphStyle(
+            "bodycell", fontName="Helvetica", fontSize=font_size,
+            textColor=oscuro, leading=font_size + 2,
+        )
 
         fecha_str = datetime.now().strftime("%d/%m/%Y %H:%M")
         story = [
-            Paragraph(f"REPORTE — {modulo.upper()}", t_title),
-            Paragraph(f"Hongos del Páramo  ·  Generado: {fecha_str}", t_sub),
-            HRFlowable(width="100%", thickness=1, color=verde, spaceAfter=0.3*cm),
-            Paragraph(f"Total registros: {len(df)}", t_sub),
+            Paragraph(f"REPORTE — {modulo.upper()}", style_title),
+            Paragraph(f"Hongos del Páramo  ·  Generado: {fecha_str}", style_sub),
+            Spacer(1, 0.2*cm),
+            HRFlowable(width="100%", thickness=1.2, color=verde, spaceAfter=0.25*cm),
+            Paragraph(f"Total registros: {len(df)}", style_sub),
             Spacer(1, 0.3*cm),
         ]
 
         # Tabla
-        headers = [str(h) for h in df.columns]
-        page_w  = landscape(A4)[0] - 3*cm
-        col_w   = page_w / len(headers) if headers else page_w
+        page_w = landscape(A4)[0] - 2 * margen_h
+        col_w  = page_w / n_cols
 
         def _celda(v) -> str:
             if v is None:
-                return "Casilla Vacía"
+                return "—"
             try:
                 if pd.isnull(v):
-                    return "Casilla Vacía"
+                    return "—"
             except (TypeError, ValueError):
                 pass
             if isinstance(v, pd.Timestamp):
                 if v.hour == 0 and v.minute == 0 and v.second == 0:
                     return v.strftime("%d/%m/%Y")
                 return v.strftime("%d/%m/%Y %H:%M")
+            if isinstance(v, float):
+                return str(int(v)) if v.is_integer() else f"{v:g}"
             s = str(v).strip()
-            return "Casilla Vacía" if s.lower() in ("nan", "none", "nat", "") else s
+            return "—" if s.lower() in ("nan", "none", "nat", "") else s
 
-        rows = [headers]
+        rows = [[Paragraph(escape(h), style_head_cell) for h in headers]]
         for _, row in df.iterrows():
-            rows.append([_celda(v) for v in row])
+            rows.append([Paragraph(escape(_celda(v)), style_body_cell) for v in row])
 
-        tbl = Table(rows, colWidths=[col_w]*len(headers), repeatRows=1)
-        tbl.setStyle(TableStyle([
-            ("BACKGROUND",  (0,0), (-1,0),  oscuro),
-            ("TEXTCOLOR",   (0,0), (-1,0),  gris),
-            ("FONTNAME",    (0,0), (-1,0),  "Helvetica-Bold"),
-            ("FONTSIZE",    (0,0), (-1,-1), 7),
-            ("GRID",        (0,0), (-1,-1), 0.3, colors.HexColor("#1A3050")),
-            ("LINEBELOW",   (0,0), (-1,0),  1,   verde),
-            ("BACKGROUND",  (0,1), (-1,-1), colors.HexColor("#080F1A")),
-            ("TEXTCOLOR",   (0,1), (-1,-1), claro),
-            ("TOPPADDING",  (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING",(0,0),(-1,-1), 4),
-            ("LEFTPADDING", (0,0), (-1,-1), 5),
-            ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
-        ]))
+        tbl = Table(rows, colWidths=[col_w] * n_cols, repeatRows=1)
+        estilos = [
+            ("BACKGROUND",   (0, 0), (-1, 0),  oscuro),
+            ("LINEBELOW",    (0, 0), (-1, 0),  1.2, verde),
+            ("GRID",         (0, 0), (-1, -1), 0.4, borde),
+            ("TOPPADDING",   (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ]
+        for i in range(1, len(rows)):
+            if i % 2 == 0:
+                estilos.append(("BACKGROUND", (0, i), (-1, i), raya))
+        tbl.setStyle(TableStyle(estilos))
+
         story.append(tbl)
         story.append(Spacer(1, 0.4*cm))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=oscuro))
-        story.append(Paragraph("ICIAGRO CORE · Sistema de Trazabilidad Hongos del Páramo", t_foot))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=borde))
+        story.append(Paragraph("ICIAGRO CORE · Sistema de Trazabilidad Hongos del Páramo", style_foot))
 
         doc.build(story)

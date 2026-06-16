@@ -157,14 +157,18 @@ class ExpedicionPage(QWidget):
         grid.addWidget(self.spin_cantidad, 3, 1)
 
         grid.addWidget(self._flbl("Unidad *"), 3, 2)
-        self.input_unidad = QLineEdit()
-        self.input_unidad.setPlaceholderText("bandejas, kg...")
-        grid.addWidget(self.input_unidad, 3, 3)
+        self.combo_unidad = QComboBox()
+        self.combo_unidad.setPlaceholderText("Seleccionar...")
+        self.combo_unidad.addItem("")
+        self.combo_unidad.addItem("Bandejas")
+        self.combo_unidad.addItem("KG")
+        grid.addWidget(self.combo_unidad, 3, 3)
 
         # Fila 4: Destino y Responsable
         grid.addWidget(self._flbl("Destino *"), 4, 0)
         self.input_destino = QLineEdit()
         self.input_destino.setPlaceholderText("Lugar de entrega...")
+        self.input_destino.setMaxLength(25)
         grid.addWidget(self.input_destino, 4, 1)
 
         grid.addWidget(self._flbl("Responsable *"), 4, 2)
@@ -313,7 +317,7 @@ class ExpedicionPage(QWidget):
             "producto":           self.combo_prod.currentData() or "",
             "lote_vendido":       lote,
             "cantidad":           self.spin_cantidad.value(),
-            "unidad":             self.input_unidad.text().strip(),
+            "unidad":             self.combo_unidad.currentText().strip(),
             "destino":            self.input_destino.text().strip(),
             "responsable":        responsable,
             "condicion_entrega":  self.combo_condicion.currentText(),
@@ -338,7 +342,7 @@ class ExpedicionPage(QWidget):
         self.combo_prod.setCurrentIndex(0)
         self.combo_lote.setCurrentIndex(0)
         self.spin_cantidad.setValue(1)
-        self.input_unidad.clear()
+        self.combo_unidad.setCurrentIndex(0)
         self.input_destino.clear()
         self.combo_resp.setCurrentIndex(0)
         self.combo_condicion.setCurrentIndex(0)

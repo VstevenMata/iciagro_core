@@ -276,6 +276,22 @@ class HongosService:
         wb.close()
         self._reload_data()
 
+    def get_codigos_recepcion(self) -> list[str]:
+        df = self._recepciones_df
+        col = self._find_col(df, "Código recepción")
+        if df.empty or not col:
+            return []
+        return [str(v).strip() for v in df[col].dropna().tolist() if str(v).strip()]
+
+    def get_recepcion_by_codigo(self, codigo: str) -> Optional[dict]:
+        df = self._recepciones_df
+        col = self._find_col(df, "Código recepción")
+        if df.empty or not col:
+            return None
+        codigo_clean = str(codigo).strip()
+        match = df[df[col].astype(str).str.strip() == codigo_clean]
+        return match.iloc[0].to_dict() if not match.empty else None
+
     # ─────────────────── PRODUCCIÓN INTERNA ─────────────────────────
 
     def get_producciones_df(self) -> pd.DataFrame:
@@ -506,6 +522,25 @@ class HongosService:
         self._reload_data()
 
     # ─────────────────────── ETIQUETAS ──────────────────────────────
+
+    def get_etiqueta_recepcion(self, codigo_recepcion: str) -> dict:
+        rec = self.get_recepcion_by_codigo(codigo_recepcion)
+        if not rec:
+            return {}
+        return {
+            "empresa":          self.EMPRESA,
+            "ubicacion":        self.UBICACION_EMPRESA,
+            "codigo_recepcion": codigo_recepcion,
+            "proveedor":        self._val(rec.get("Proveedor")),
+            "materia_prima":    self._val(rec.get("Materia prima")),
+            "fecha_recepcion":  rec.get("Fecha recepción"),
+            "dia_juliano":      self._val(rec.get("Día juliano")),
+            "cantidad":         rec.get("Cantidad recibida"),
+            "unidad":           self._val(rec.get("Unidad")),
+            "estado":           self._val(rec.get("Estado")),
+            "responsable":      self._val(rec.get("Responsable")),
+            "observaciones":    self._val(rec.get("Observaciones")),
+        }
 
     def get_etiqueta_produccion(self, lote_interno: str) -> dict:
         prod = self.get_produccion_by_lote(lote_interno)
